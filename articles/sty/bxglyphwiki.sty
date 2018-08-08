@@ -1,0 +1,801 @@
+% bxglyphwiki.sty
+
+%% package declaration
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{bxglyphwiki}[2017/05/07 v0.4a]
+\def\bxgw@pkgname{bxglyphwiki}
+
+%% switches
+\newif\ifbxgw@ok
+\newif\ifbxgw@unicode
+\newif\ifbxgw@ptex
+\newif\ifbxgw@use@bb
+\newif\ifbxgw@internallua
+
+%% packages
+\RequirePackage{pdftexcmds}[2009/09/23]% v0.6
+\RequirePackage{ifluatex,ifxetex,ifpdf}
+
+%--------------------------------------- environment check
+
+%% engine check
+\pdf@isprimitive\kanjiskip\kanjiskip{\bxgw@ptextrue}{}
+\bxgw@oktrue
+\ifluatex
+  \bxgw@unicodetrue
+  \bxgw@internalluatrue
+\else\ifxetex
+  \bxgw@unicodetrue
+\else\ifbxgw@ptex
+  \ifx\ucs\@undefined\else\ifnum\ucs"3000="3000
+    \bxgw@unicodetrue \fi\fi
+\else
+  \PackageError\bxgw@pkgname
+   {The engine in use is not supported}\@ehc
+  \bxgw@okfalse
+\fi\fi\fi
+\ifbxgw@ok\else\expandafter\endinput\fi\relax
+
+%% \bxgw@ifvertdir@ptex
+\@onlypreamble\bxgw@ifvertdir@ptex
+\def\bxgw@ifvertdir@ptex{\bxgw@cond{%
+  \if\iftdir\ifmdir F\else T\fi\else F\fi T%
+}\fi}
+
+%--------------------------------------- configuration interface
+% The commands here will be used in the config file.
+
+%% packages
+\RequirePackage{keyval}
+
+%% unique tokens
+\def\bxgw@mark{\bxgw@mark@}
+\def\bxgw@end{\bxgw@end@}
+\let\bxgw@stop\relax
+
+%%<*> \setgwworkdir{<dir_name>}
+% Specifies the directory where the files created by this
+% package will be located.
+\newcommand*\setgwworkdir[1]{%
+  \edef\bxgw@wdir{#1}%
+  % strip a traling /
+  \expandafter\bxgw@setgwworkdir@a\bxgw@wdir
+   \bxgw@mark/\bxgw@mark\bxgw@end
+}
+\def\bxgw@setgwworkdir@a#1/\bxgw@mark#2\bxgw@end{%
+  \ifx\bxgw@end#2\bxgw@end\else \def\bxgw@wdir{#1}\fi
+  \ifx\bxgw@wdir\@empty \def\bxgw@wdir{.}\fi
+}
+
+%%<*> \setgwimageformat{<format>}
+% The image file format to be used; possible
+% values are 'eps' and 'pdf'.
+\newcommand*\setgwimageformat[1]{%
+  \edef\bxgw@img@fmt{#1}%
+}
+
+%%<*> \setgwcommand{<format>}
+% The name of the helper command.
+\newcommand*\setgwcommand[1]{%
+  \edef\bxgw@command{#1}%
+}
+
+%%<*> \setgwcache{<minutes>}
+% Sets the cache duration in minutes, or 'forever'.
+\newcommand*\setgwcache[1]{%
+  \edef\bxgw@tmpa{#1}%
+  \def\bxgw@tmpb{never}\ifx\bxgw@tmpa\bxgw@tmpb
+    \def\bxgw@tmpa{-60}\fi
+  \def\bxgw@tmpb{forever}\ifx\bxgw@tmpa\bxgw@tmpb
+    \def\bxgw@tmpa{\maxdimen}\fi
+  \afterassignment\bxgw@setgwcache@a\@tempcnta\bxgw@tmpa\bxgw@stop
+}
+\def\bxgw@setgwcache@a#1\bxgw@stop{%
+  \ifx\bxgw@end#1\bxgw@end
+    \edef\bxgw@cache{\the\@tempcnta}%
+  \else
+    \PackageError\bxgw@pkgname
+     {Illegal number format}\@eha
+  \fi
+}
+
+%--------------------------------------- option handling
+
+%% strings
+\def\bxgw@hyph{-}
+
+%% driver options
+\let\bxgw@drv\bxgw@hyph
+\def\bxgw@drv@opt#1{%
+  \edef\bxgw@drv{\CurrentOption}%
+  \def\bxgw@img@fmt{#1}%
+}
+\DeclareOption{dvips}   {\bxgw@drv@opt{eps}}
+\DeclareOption{dvipdfmx}{\bxgw@drv@opt{pdf}}
+\DeclareOption{pdftex} {\bxgw@drv@opt{pdf}}
+\DeclareOption{luatex} {\bxgw@drv@opt{pdf}}
+\DeclareOption{xetex}  {\bxgw@drv@opt{pdf}}
+%% download options
+\chardef\bxgw@download\@ne
+\DeclareOption{download}{\chardef\bxgw@download\@ne}
+\DeclareOption{nodownload}{\chardef\bxgw@download\z@}
+%\DeclareOption{forcedownload}{\chardef\bxgw@download\tw@}
+\DeclareOption{internallua}{\bxgw@internalluatrue}
+\DeclareOption{nointernallua}{\bxgw@internalluafalse}
+%% handling keyval options
+\DeclareOption*{%
+  \def\bxgw@next{\setkeys{bxgw}}%
+  \expandafter\bxgw@next\expandafter{\CurrentOption}%
+}
+%% dir option
+\define@key{bxgw}{dir}{%
+  \g@addto@macro\bxgw@opt@post{\setgwworkdir{#1}}%
+}
+%% cache options
+\define@key{bxgw}{cache}{%
+  \g@addto@macro\bxgw@opt@post{\setgwcache{#1}}%
+}
+
+%% default configurations
+\setgwworkdir{.}
+\setgwcache{10080}% one week
+\setgwimageformat{eps}
+\IfFileExists{./\bxgw@pkgname.lua}
+ {\setgwcommand{texlua \bxgw@pkgname.lua}}
+ {\setgwcommand{\bxgw@pkgname}}
+\def\bxgw@pfx{bxgw}
+
+%% read the config file
+\IfFileExists{\bxgw@pkgname.cfg}{%
+  \makeatother
+  \input{\bxgw@pkgname.cfg}%
+  \makeatletter
+}{}
+
+%% driver adjustment
+\ifxetex
+  \ExecuteOptions{xetex}%
+\else\ifluatex
+  \ifpdf
+    \IfFileExists{luatex.def}{%
+      \ExecuteOptions{luatex}%
+    }{%
+      \ExecuteOptions{pdftex}%
+    }%
+  \fi
+\fi\fi
+\@ifpackageloaded{graphics}{%
+  \def\bxgw@next#1.def#2\bxgw@end{%
+    \ExecuteOptions{#1}}%
+  \expandafter\bxgw@next\Gin@driver\bxgw@end
+}{}
+
+%% do it
+\let\bxgw@opt@post\@empty
+\ProcessOptions*
+\bxgw@opt@post
+
+%% driver adjustment (afterwards)
+\@ifpackageloaded{graphics}{%
+  \RequirePackage{graphicx}%
+}{%else
+  \ifx\bxgw@drv\bxgw@hyph\else
+    \PackageInfo\bxgw@pkgname
+     {Auto-load graphicx with driver '\bxgw@drv'}%
+    \edef\bxgw@next{[\bxgw@drv]{graphicx}}%
+    \expandafter\RequirePackage\bxgw@next
+  \fi
+  \AtBeginDocument{%
+    \ifx\includegraphics\@undefined
+      \PackageError\bxgw@pkgname
+       {The graphics package is not auto-loaded because\MessageBreak
+        the driver is unknown, and the package is not\MessageBreak
+        manually loaded either}%
+       {\@ehc}%
+    \fi}%
+}
+
+%--------------------------------------- helpers
+
+%% variables
+\newdimen\bxgw@zw % zenkaku width
+\newwrite\bxgw@out
+
+%% strings
+\def\bxgw@@ast{*}
+\def\bxgw@@plus{+}
+\def\bxgw@@hyph{-}
+\def\bxgw@zero{0}
+
+%% \bxgw@cond\ifXX...\fi{<true>}{<false>}
+\@gobbletwo\if\if % if-match hack
+\def\bxgw@cond#1\fi{%
+  #1\expandafter\@firstoftwo
+  \else\expandafter\@secondoftwo\fi
+}
+
+%% \bxgw@unless\ifXX...\fi{<false>}
+\@gobbletwo\if\if % if-match hack
+\def\bxgw@unless#1\fi{%
+  #1\expandafter\@gobble
+  \else\expandafter\@firstofone\fi
+}
+
+%% \bxgw@zs : zenkaku space
+%% \bxgw@geta : geta mark
+\ifbxgw@unicode
+  \chardef\bxgw@zs="3000\relax
+  \chardef\bxgw@geta="3013\relax
+\else
+  \chardef\bxgw@zs=\jis"2121\relax
+  \chardef\bxgw@geta=\jis"222E\relax
+\fi
+
+%% \bxgw@get@zw
+% Sets the right value of \bxgw@zw.
+\def\bxgw@get@zw{%
+  \settowidth\bxgw@zw{\bxgw@zs}%
+}
+
+%% \bxgw@set@real@param
+\def\bxgw@set@real@param#1#2{%
+  \def\bxgw@next{\edef#1{\strip@pt\bxgw@zw}}%
+  \afterassignment\bxgw@srp@a\bxgw@zw=#2\p@\bxgw@stop
+}
+\def\bxgw@srp@a#1\bxgw@stop{%
+  \ifx\bxgw@end#1\bxgw@end
+    \bxgw@next
+  \else
+    \PackageError\bxgw@pkgname
+     {Illegal number format}\@eha
+  \fi
+}
+
+%% \bxgw@repeatable@hook
+\@onlypreamble\bxgw@repeatable@hook
+\let\bxgw@repeatable@hook\@empty
+\AtBeginDocument{\bxgw@repeatable@hook}
+\AtEndOfPackage{\bxgw@repeatable@hook}
+
+%% \bxgw@ifvertdir{<true>}{<false>}
+% Tests if the current writing direction is vertical.
+\ifbxgw@ptex
+  \let\bxgw@ifvertdir\bxgw@ifvertdir@ptex
+\else
+  \let\bxgw@ifvertdir\@secondoftwo % always false
+\fi
+\g@addto@macro\bxgw@repeatable@hook{%
+  \ifx\ltj@curtfnt\@undefined\else
+    \chardef\bxgw@luatexja@tate=3
+    \def\bxgw@ifvertdir{\bxgw@cond
+      \ifnum\ltjgetparameter{direction}=\bxgw@luatexja@tate\fi}%
+  \fi
+}
+
+%% \bxgw@nunc : current timestamp
+%% \bxgw@tunc : cache limit timestamp
+\begingroup
+  % Timestamp is the number of minutes elapsed from the epoch
+  % of the Modified Julian Day.
+  \@tempcnta=\year \@tempcntb=\month
+  \ifnum\@tempcntb<3
+    \advance\@tempcntb12 \advance\@tempcnta-1
+  \fi
+  \mathchardef\@tempyear\@tempcnta
+  \chardef\@tempmonth\@tempcntb
+  \multiply\@tempcnta1461
+  \divide\@tempcnta4 \@tempcntb\@tempyear
+  \divide\@tempcntb100 \advance\@tempcnta-\@tempcntb
+  \divide\@tempcntb4 \advance\@tempcnta\@tempcntb
+  \@tempcntb\@tempmonth \advance\@tempcntb-2
+  \multiply\@tempcntb520 \divide\@tempcntb17
+  \advance\@tempcnta\@tempcntb \advance\@tempcnta\day
+  \advance\@tempcnta-678912
+  \multiply\@tempcnta1440 \advance\@tempcnta\time
+  \xdef\bxgw@nunc{\the\@tempcnta}%
+  \advance\@tempcnta-\bxgw@cache
+  \ifnum\@tempcnta<\z@ \@tempcnta\z@ \fi
+  \xdef\bxgw@tunc{\the\@tempcnta}%
+  \PackageInfo\bxgw@pkgname
+   {current time = \bxgw@nunc\@gobble}%
+\endgroup
+
+%--------------------------------------- internallua availability
+
+%% check if 'internallua' is available
+\ifbxgw@internallua
+  \ifluatex
+    \chardef\bxgw@tmpa=\directlua{
+      tex.write(pcall(function()
+        local chunk = assert(loadfile(assert(
+            kpse.find_file("\bxgw@pkgname.lua", "lua", true))))
+        bxglyphwiki = {}
+        chunk()
+      end) and "1" or "0")
+    }
+    \ifnum\bxgw@tmpa>\z@
+      \PackageInfo\bxgw@pkgname
+       {Entered 'internallua' mode\@gobble}
+    \else
+      \PackageWarning\bxgw@pkgname
+       {Set-up for 'internallua' mode failed,\MessageBreak
+        falling back to 'nointernallua' mode\@gobble}
+      \bxgw@internalluafalse
+    \fi
+  \else
+    \PackageWarning\bxgw@pkgname
+     {You can use 'internallua' only on LuaTeX,\MessageBreak
+      falling back to 'nointernallua' mode\@gobble}
+    \bxgw@internalluafalse
+  \fi
+\fi
+
+%--------------------------------------- glyph output
+
+%% \bxgw@scl : glyph scale
+\def\bxgw@scl{1.05}
+%% \bxgw@yadj : vertical adjustment (yoko)
+\def\bxgw@yadj{0}
+%% \bxgw@tadj : vertical adjustment (tate)
+\def\bxgw@tadj{0}
+%% \bxgw@bb : bounding box
+\def\bxgw@bb{0 0 1024 1024}
+
+%% set \ifbxgw@use@bb
+% Bbox is used only by dvipdfmx driver.
+\bxgw@use@bbfalse
+\def\bxgw@tmpa{dvipdfmx}\ifx\bxgw@tmpa\bxgw@drv
+  \bxgw@use@bbtrue
+\fi
+
+%% \bxgw@ytzw
+\def\bxgw@ytzw#1#2{%
+  \bxgw@ifvertdir{#2}{#1}\bxgw@zw
+}
+
+%% \bxgw@cht / \bxgw@cdp
+\def\bxgw@cht{\bxgw@htdp\cht{0.88}{0.5}}
+\def\bxgw@cdp{\bxgw@htdp\cdp{0.12}{0.5}}
+\def\bxgw@htdp#1#2#3{%
+  \ifx#1\@undefined
+    \ifbxgw@ytzw{#2}{#3}%
+  \else #1%
+  \fi
+}
+
+%% \bxgw@use@img{<filename>}
+% Places a glyph image as if it were a kanji.
+\def\bxgw@use@img#1{%
+  \def\bxgw@img@file{#1}%
+  \@tempdima\bxgw@ytzw{\bxgw@yadj}{\bxgw@tadj}%
+  \advance\@tempdima\bxgw@ytzw{-0.12}{-0.5}%
+  \ifx\adjustbaseline\@undefined\else
+    \adjustbaseline
+  \fi
+  \edef\bxgw@vertadj{\the\@tempdima}%
+  \edef\bxgw@next{\bxgw@img@args}%
+  \bxgw@next
+}
+\def\bxgw@img@args{%
+  \noexpand\raisebox{\bxgw@vertadj}[\bxgw@cht][\bxgw@cdp]%
+  {\noexpand\makebox[\bxgw@zw][c]{%
+    \bxgw@ifvertdir{\noexpand\rotatebox[origin=c]{90}}{}{%
+    \noexpand\includegraphics
+      [width=\bxgw@scl\bxgw@zw
+      ,height=\bxgw@scl\bxgw@zw
+      \ifbxgw@use@bb ,bb=\bxgw@bb \fi ]%
+      {\bxgw@img@file}%
+  }}}%
+}
+
+%% \bxgw@errorout
+\def\bxgw@errorout{%
+  \bxgw@fallback\bxgw@geta
+}
+
+%% \bxgw@fallback{<char>}
+% Prints a character as fallback; it is rendered with double
+% thick underlines beneath.
+\def\bxgw@fallback#1{%
+  \ifx\adjustbaseline\@undefined\else
+    \adjustbaseline
+  \fi
+  \raisebox{\z@}[\bxgw@cht][\bxgw@cdp]{%
+    \makebox[\bxgw@zw]{#1}\kern-\bxgw@zw
+    \rule[\bxgw@ytzw{-.15}{-.53}]{\bxgw@zw}{.05\bxgw@zw}%
+    \kern-\bxgw@zw
+    \rule[\bxgw@ytzw{-.25}{-.63}]{\bxgw@zw}{.05\bxgw@zw}}%
+}
+
+%--------------------------------------- user command
+
+%% variables
+\let\bxgw@glyph\@empty % glyph name
+\let\bxgw@rev\@empty   % version spec (number macro)
+\let\bxgw@mode\relax   % mode spec (pseudovar)
+
+%%<*> \setgwscale{<real>}
+\newcommand*\setgwscale[1]{%
+  \bxgw@set@real@param\bxgw@scl{#1}%
+}
+
+%%<*> \setgwyvertadjust{<real>}
+\newcommand*\setgwyvertadjust[1]{%
+  \bxgw@set@real@param\bxgw@yadj{#1}%
+}
+
+%%<*> \setgwtvertadjust{<real>}
+\newcommand*\setgwtvertadjust[1]{%
+  \bxgw@set@real@param\bxgw@tadj{#1}%
+}
+
+%%<*> \GWI[*][<ver-spec>]{<glyph>}
+% Prints a glyph!
+\@ifdefinable{\GWI}{%
+  \DeclareRobustCommand*\GWI{%
+    \bxgw@zs
+    \bxgw@get@zw \kern-\bxgw@zw
+    \begingroup
+      \bxgw@input
+  }
+}
+\def\bxgw@input{%
+  \@ifstar{\bxgw@input@a*}{\bxgw@input@a+}%
+}
+\def\bxgw@input@a#1{%
+  \@ifnextchar[%
+   {\bxgw@input@b#1}{\bxgw@input@b#1[]}%
+}
+\def\bxgw@input@b#1[#2]#3{%
+  \edef\bxgw@rev{#2}%
+  \edef\bxgw@glyph{#3}%
+  \ifx\bxgw@rev\@empty \def\bxgw@rev{#1}\fi
+  \afterassignment\bxgw@parse@arg\@tempcnta0\bxgw@rev\relax
+  \bxgw@validate@var\bxgw@glyph
+  \bxgw@unless\ifbxgw@ok\fi{\bxgw@abort}%
+  \bxgw@main
+  \bxgw@exit
+}
+
+%% \bxgw@exit
+\def\bxgw@exit{%
+  \endgroup
+  \kern-\bxgw@zw \bxgw@zs
+}
+
+%% \bxgw@abort
+\def\bxgw@abort#1\bxgw@exit{%
+  \bxgw@errorout
+  \bxgw@exit
+}
+
+%% \bxgw@annihilate
+\def\bxgw@annihilate{%
+  \let\bxgw@annihilated=t%
+  \let\bxgw@main\bxgw@abort
+  \chardef\bxgw@download\z@
+}
+
+%% bxgw@parse@arg
+\def\bxgw@parse@arg#1\relax{%
+  \def\bxgw@tmpa{#1}%
+  \let\bxgw@mode\relax
+  \ifx\bxgw@tmpa\@empty \chardef\bxgw@mode\z@ \fi
+  \ifx\bxgw@tmpa\bxgw@@ast \chardef\bxgw@mode\@ne \fi
+  \ifx\bxgw@tmpa\bxgw@@plus \chardef\bxgw@mode\tw@ \fi
+  \bxgw@cond\ifx\bxgw@mode\relax\fi{\bxgw@abort}%
+  \bxgw@cond{\ifnum\ifnum\bxgw@mode>\z@ \z@\else\@ne\fi>\@tempcnta}%
+    \fi{\bxgw@abort}%
+  \ifnum\@tempcnta=\z@ \@tempcnta=\@ne \fi
+  \edef\bxgw@rev{\the\@tempcnta}%
+}
+
+%--------------------------------------- main procedure
+
+%% variables
+\let\bxgw@latest\@empty % latest version (number)
+\let\bxgw@stor\@empty   % storage info
+\let\bxgw@rel\@empty    % related character (text)
+\let\bxgw@rrev\@empty   % resolved version (number)
+
+%% bxgw@rel/*
+
+%% \bxgw@resp@file
+\def\bxgw@resp@file{%
+  \bxgw@wdir/\bxgw@pfx_resp_.def}
+%% \bxgw@bbox@file
+\def\bxgw@bbox@file{%
+  \bxgw@wdir/\bxgw@pfx_bbox_.def}
+%% \bxgw@info@file
+\def\bxgw@info@file{%
+  \bxgw@wdir/\bxgw@pfx_\bxgw@glyph.def}
+%% \bxgw@glyph@file
+\def\bxgw@glyph@file{%
+  \bxgw@wdir/\bxgw@pfx_\bxgw@glyph_\bxgw@rev.\bxgw@img@fmt}
+
+
+%% \bxgw@main
+% The main procedure.
+\def\bxgw@main{%
+  \bxgw@get@info
+  \bxgw@resolve
+  \let\bxgw@rev\bxgw@rrev
+  \bxgw@put@glyph
+}
+
+%% \bxgw@get@info
+\def\bxgw@get@info{%
+  \expandafter\let\expandafter\bxgw@rel\csname
+   bxgw@rel/\bxgw@glyph\endcsname
+  \bxgw@cond\ifx\bxgw@rel\relax\fi{%
+    \bxgw@cond\ifnum\bxgw@download>\z@\fi{%
+      \bxgw@exec@info
+      \bxgw@cond\ifx\bxgw@resp\@empty\fi{\bxgw@abort}{}%
+      \expandafter\bxgw@get@info@a\bxgw@resp
+    }{\let\bxgw@rel\bxgw@geta}%
+  }{}%
+  \bxgw@read@info
+  \global\expandafter\let\csname
+   bxgw@rel/\bxgw@glyph\endcsname\bxgw@rel
+  \ifnum\bxgw@rev>\bxgw@latest\relax
+    \PackageWarning\bxgw@pkgname
+     {The requested version (\bxgw@rev) is not yet present%
+      \MessageBreak ('\bxgw@glyph', latest=\bxgw@latest),}%
+    \let\bxgw@rev\bxgw@latest
+  \fi
+}
+\def\bxgw@get@info@a#1#2{%
+  \ifx#1#1% #1 is a single kanji token
+    \def\bxgw@rel{#1}%
+  \else \let\bxgw@rel\bxgw@geta
+  \fi
+}
+
+%% \bxgw@read@info
+% Reads in the info file.
+% It stores data into \bxgw@latest and \bxgw@stor.
+\def\bxgw@read@info{%
+  \let\bxgw@latest\relax \let\bxgw@stor\relax
+  \let\do\bxgw@read@info@a
+  \InputIfFileExists{\bxgw@info@file}{}{}%
+  \bxgw@cond\ifx\bxgw@latest\relax\fi{%
+    \PackageError\bxgw@pkgname
+     {Glyph '\bxgw@glyph' is not available}\@ehd
+    \bxgw@abort
+  }{}%
+}
+\def\bxgw@read@info@a#1#2{%
+  \def\bxgw@latest{#1}\def\bxgw@stor{#2}%
+}
+
+%% \bxgw@resolve
+% Deicdes the glyph version to use.
+\def\bxgw@resolve{%
+  \let\bxgw@org@rev\rev
+  \ifnum\bxgw@mode=\z@ \let\rev\bxgw@resolve@sing 
+  \else \let\rev\bxgw@resolve@mult
+  \fi
+  \bxgw@okfalse \let\bxgw@rrev\bxgw@zero
+  \bxgw@stor
+  \ifnum\bxgw@download=\z@ \bxgw@oktrue \fi
+  \ifcase\bxgw@mode
+    \let\bxgw@rrev\bxgw@rev
+  \or % *
+    \ifnum\bxgw@rrev=\z@ \let\bxgw@rrev\bxgw@latest \fi
+  \or % +
+    \ifbxgw@ok\else \let\bxgw@rrev\bxgw@latest \fi
+  \fi
+  \PackageInfo\bxgw@pkgname
+   {Using ver.\bxgw@rrev\space for '\bxgw@glyph'
+    (latest=\bxgw@latest),\MessageBreak
+    \ifbxgw@ok without\else with\fi\space download,}%
+  \let\rev\bxgw@org@rev
+}
+\def\bxgw@resolve@sing#1#2{%
+  \ifnum\bxgw@rev=#1\relax \ifnum#2<\bxgw@tunc\relax\else 
+    \bxgw@oktrue 
+  \fi\fi
+}
+\def\bxgw@resolve@mult#1#2{%
+  \ifnum#1<\bxgw@rev\else
+    \ifnum#2<\bxgw@tunc\relax\else \bxgw@oktrue \fi
+    \ifnum\bxgw@rrev<#1\relax \def\bxgw@rrev{#1}\fi
+  \fi
+}
+
+%% \bxgw@put@glyph
+\def\bxgw@put@glyph{%
+  \bxgw@cond\ifx\includegraphics\@undefined\fi{\bxgw@abort}{}%
+  \bxgw@cond\ifbxgw@ok\fi{}{%else
+    \bxgw@exec@get
+    \bxgw@cond\ifx\bxgw@resp\@empty\fi{\bxgw@abort}{}%
+    \bxgw@save@bb
+    \ifbxgw@use@bb \let\bxgw@bb\bxgw@resp \fi
+  }%
+  \IfFileExists{\bxgw@glyph@file}{%
+    \bxgw@use@img{\bxgw@glyph@file}%
+  }{%else
+    \PackageError\bxgw@pkgname
+     {Glyph image of '\bxgw@glyph'(\bxgw@rev) is not found}\@ehd
+    \bxgw@abort
+  }%
+}
+
+%% \bxgw@save@bb
+\def\bxgw@save@bb{%
+  \def\bxgw@tmpb{ok}\ifx\bxgw@tmpb\bxgw@resp\else
+    \immediate\openout\bxgw@out=\bxgw@bbox@file\relax
+    \immediate\write\bxgw@out{\noexpand\do{\bxgw@resp}\relax}%
+    \immediate\closeout\bxgw@out
+  \fi
+}
+
+%--------------------------------------- string validation
+
+%% \bxgw@validate{<string>}
+\def\bxgw@validate#1{%
+  \bxgw@oktrue
+  \ifx\bxgw@end#1\bxgw@end \bxgw@okfalse
+  \else
+    \@firstofone{\bxgw@validate@b#1} \bxgw@end
+    \ifbxgw@ok \bxgw@validate@c{#1}\fi
+  \fi
+}
+\def\bxgw@validate@a#1{\lccode`#1`*\relax}
+\def\bxgw@validate@b#1 #2\bxgw@end{%
+  \ifx\bxgw@end#2\bxgw@end\else \bxgw@okfalse \fi
+}
+\def\bxgw@validate@c#1{%
+  \begingroup
+    \escapechar`\\\def\bxgw@tmpa{#1}%
+    \expandafter\bxgw@validate@d\meaning\bxgw@tmpa\bxgw@end
+  \endgroup
+}
+\def\bxgw@validate@d#1>#2\bxgw@end{%
+  \let\do\bxgw@validate@a \bxgw@ban@list
+  \lowercase{\bxgw@validate@e#2}*\bxgw@end
+}
+\def\bxgw@validate@e#1*#2\bxgw@end{%
+  \ifx\bxgw@end#2\bxgw@end\else \aftergroup\bxgw@okfalse \fi
+}
+\def\bxgw@ban@list{%
+  \do\"\do\$\do\@\do\&\do\'\do\(\do\)\do\^\do\|\do\[%
+  \do\]\do\{\do\}\do\;\do\*\do\?\do\<\do\>\do\\%
+}
+
+%% \bxgw@validate@var\CS
+\def\bxgw@validate@var#1{%
+  \expandafter\bxgw@validate\expandafter{#1}%
+}
+
+%--------------------------------------- external
+
+%% \bxgw@spawn{<command>}{<arg>...}
+\def\bxgw@spawn#1#2{%
+  \pdf@system{\bxgw@command\space +#1\space
+   \bxgw@wdir\space \bxgw@img@fmt\space
+   \bxgw@drv\space #2}%
+  \bxgw@read@response
+  \ifx\bxgw@resp\@empty
+    \PackageError\bxgw@pkgname
+     {Helper command failed for some reason}\@ehd
+  \fi
+}
+
+%% \bxgw@read@response
+\def\bxgw@read@response{%
+  \let\bxgw@resp\@empty
+  \let\do\bxgw@read@response@a
+  \InputIfFileExists{\bxgw@resp@file}{}{}%
+}
+\def\bxgw@read@response@a#1{\def\bxgw@resp{#1}}
+
+%% \bxgw@exec@ping
+\def\bxgw@exec@ping{%
+  \ifnum\ifx\pdf@shellescape\@undefined \tw@
+        \else \pdf@shellescape \fi >\z@
+    \def\bxgw@token{ping}%
+    \bxgw@read@response
+    \ifx\bxgw@token\bxgw@resp \def\bxgw@token{ping+}\fi
+    \bxgw@spawn{ping}{\bxgw@token}%
+    \bxgw@read@response
+    \ifx\bxgw@token\bxgw@resp
+      \PackageInfo\bxgw@pkgname
+       {PING success\@gobble}%
+    \else
+      \PackageError\bxgw@pkgname
+       {PING failure, download aborted}%
+       {Run your LaTeX command with -shell-escape option to download
+        images.\MessageBreak\@ehc}%
+      \chardef\bxgw@download\z@
+    \fi
+  \else
+    \PackageError\bxgw@pkgname
+     {Shell is disabled, download aborted}%
+     {Run your LaTeX command with -shell-escape option to download
+      images.\MessageBreak\@ehc}%
+    \chardef\bxgw@download\z@
+  \fi
+}
+
+%% \bxgw@exec@info
+\def\bxgw@exec@info{%
+  \bxgw@spawn{info}{\bxgw@glyph}%
+}
+
+%% \bxgw@exec@get
+\def\bxgw@exec@get{%
+  \bxgw@spawn{get}{\bxgw@glyph\space\bxgw@rev}%
+}
+
+%--------------------------------------- directlua mode
+\ifbxgw@internallua
+
+%% \bxgw@spawn{<command>}{<arg>...}
+\def\bxgw@spawn#1#2{%
+  \edef\bxgw@resp{\unexpanded\expandafter{\directlua{
+    tex.sprint(bxglyphwiki.spawn("#1\space
+      \bxgw@wdir\space \bxgw@img@fmt\space
+      \bxgw@drv\space #2"))
+  }}}%
+  \ifx\bxgw@resp\@empty
+    \PackageError\bxgw@pkgname
+     {Helper command failed for some reason}\@ehd
+  \fi
+}
+
+%% \bxgw@exec@ping
+\def\bxgw@exec@ping{%
+  \bxgw@spawn{ping}{int}%
+  \unless\ifx\bxgw@resp\@empty
+    \PackageInfo\bxgw@pkgname
+     {PING success\@gobble}%
+  \else
+    \PackageError\bxgw@pkgname
+     {PING failure, download aborted}%
+     {Run your LaTeX command with -shell-restricted (or -shell-escape)
+      option\MessageBreak to download images.\MessageBreak\@ehc}%
+    \chardef\bxgw@download\z@
+  \fi
+}
+
+%% \bxgw@read@response
+\let\bxgw@read@response\relax
+\let\bxgw@read@response@a\relax
+
+\fi
+%--------------------------------------- start up
+
+%% validate static parameters
+\bxgw@oktrue
+\def\bxgw@next#1#2{%
+  \ifbxgw@ok
+    \bxgw@validate@var#1\ifbxgw@ok\else
+      \PackageError\bxgw@pkgname
+       {#2 '#1' is illegal}%
+       {Some of the setting has an illegal value.\MessageBreak
+        The package will not work at all.\MessageBreak\@ehc}%
+      \bxgw@annihilate
+    \fi
+  \fi
+}
+\bxgw@next\bxgw@wdir{Directory name}
+\bxgw@next\bxgw@img@fmt{Format name}
+\bxgw@next\bxgw@drv{Driver name}
+
+%% invoke ping
+\ifnum\bxgw@download>\z@
+  \bxgw@exec@ping
+\fi
+
+%% read saved bbox
+\ifx t\bxgw@annihilated\else
+  \ifbxgw@use@bb
+    \def\do{\def\bxgw@bb}%
+    \InputIfFileExists{\bxgw@bbox@file}{}{}%
+  \fi
+\fi
+
+%--------------------------------------- all done
+\endinput
+%% EOF

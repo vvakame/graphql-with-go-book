@@ -1,0 +1,8 @@
+PREDEF:
+  - preface.re
+
+CHAPS:
+  - test.re
+
+POSTDEF:
+  # - contributors.re

@@ -1,0 +1,45 @@
+{
+  "name": "graphql-with-go-book",
+  "version": "0.0.1",
+  "private": true,
+  "description": "",
+  "main": "Gruntfile.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vvakame/graphql-with-go-book.git"
+  },
+  "author": "vvakame",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/vvakame/graphql-with-go-book/issues"
+  },
+  "homepage": "https://github.com/vvakame/graphql-with-go-book#readme",
+  "engines": {
+    "node": ">=10.0.0"
+  },
+  "scripts": {
+    "global-bundler": "gem install bundler",
+    "global": "npm run global-bundler",
+    "postinstall": "bundle install",
+    "check:prh": "prh --verify --verbose articles/*.re",
+    "check": "npm run check:prh",
+    "pdf": "grunt pdf",
+    "md": "grunt markdown",
+    "html": "grunt html",
+    "test": "npm run check && npm run html"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^9.4.6",
+    "grunt": "^1.0.3",
+    "grunt-cli": "1.2.0",
+    "grunt-contrib-clean": "^1.1.0",
+    "grunt-open": "0.2.3",
+    "grunt-shell": "^2.1.0",
+    "js-yaml": "^3.6.0",
+    "load-grunt-tasks": "^4.0.0",
+    "prh": "^5.4.3",
+    "prh-languageserver": "^0.4.0",
+    "typescript": "^3.0.1"
+  }
+}

@@ -1,0 +1,313 @@
+@media print {
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  /* @import url(https://fonts.googleapis.com/earlyaccess/notosansjp.css); */
+  /*
+  * Noto Sans JP (japanese) http://www.google.com/fonts/earlyaccess
+  */
+  @font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 100;
+    src: local("Noto Sans CJK JP Thin"),
+        url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Thin.woff2) format('woff2'),
+        url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Thin.woff) format('woff'),
+        url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Thin.otf) format('opentype');
+  }
+  @font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 300;
+    src: local("Noto Sans CJK JP Light"),
+        url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Light.woff2) format('woff2'),
+        url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Light.woff) format('woff'),
+        url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Light.otf) format('opentype');
+  }
+  @font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 400;
+    src: local("Noto Sans CJK JP Regular"),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Regular.woff2) format('woff2'),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Regular.woff) format('woff'),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Regular.otf) format('opentype');
+  }
+  @font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 500;
+    src: local("Noto Sans CJK JP Medium"),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Medium.woff2) format('woff2'),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Medium.woff) format('woff'),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Medium.otf) format('opentype');
+  }
+  @font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 700;
+    src: local("Noto Sans CJK JP Bold"),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Bold.woff2) format('woff2'),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Bold.woff) format('woff'),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Bold.otf) format('opentype');
+  }
+  @font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 900;
+    src: local("Noto Sans CJK JP Black"),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Black.woff2) format('woff2'),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Black.woff) format('woff'),
+          url(https://fonts.gstatic.com/ea/notosansjp/v5/NotoSansJP-Black.otf) format('opentype');
+  }
+}
+
+body {
+  page-break-before: left;
+  counter-reset: footnote;
+}
+@media screen {
+  :root {
+    line-height: 1.3;
+  }
+}
+@media print {
+  :root {
+    font-weight: 400;
+    line-height: 1.6;
+    padding-top: 1.5rem;
+  }
+
+  a {
+    text-decoration: none;
+    font-style: italic;
+  }
+  a:link,
+  a:visited {
+    color: black;
+  }  
+}
+
+section {
+  break-before: page;
+  break-after: page;
+}
+nav {
+  break-before: page;
+  break-after: page;
+}
+aside {
+  break-before: page;
+  break-after: page;
+}
+
+p.footnote {
+  float: footnote;
+}
+a.noteref {
+  vertical-align: super;
+}
+/* NOTE footnoteの自動採番がやりたかった奴〜〜 */
+/*
+section {
+  counter-reset: footnote;
+}
+p.footnote {
+  counter-increment: footnote;
+}
+p.footnote::footnote-marker {
+  content: '* ' counter(footnote);
+}
+a.noteref::before {
+  content: '*' target-counter(attr(href), footnote);
+  vertical-align: super;
+}
+ */
+
+
+nav.toc a::after {
+  content: target-counter(attr(href), page);
+  float: right;
+}
+
+p {
+  text-indent: 1rem;
+  text-align: justify;
+}
+
+/* .image,  */
+p.caption {
+  text-align: center;
+  text-indent: 0;
+}
+/* list, emlist, tableのキャプションは左寄せ */
+.caption-code p.caption,
+.emlist-code p.caption {
+  text-align: start;
+}
+p.caption::before {
+  color: gray;
+  content: "▲";
+}
+.caption-code p.caption::before,
+.emlist-code p.caption::before,
+.table p.caption::before {
+  color: gray;
+  content: "▼";
+}
+
+pre.cmd {
+  background-color: #444;
+  color: white;
+  padding: 1rem 2rem;
+}
+pre.list, pre.emlist {
+  padding: 1rem 2rem;
+  background-color: #eee;
+  border: solid 3px gray;
+  border-radius: 0.3rem;
+}
+
+table {
+  margin: 0 auto 2em auto;
+  border-collapse: collapse;
+}
+table tr th {
+  border:1px black solid;
+  font-size: 0.9rem;
+  padding: 0.3rem;
+}
+table tr td {
+  border:1px black solid;
+  font-size: 0.9rem;
+  padding: 0.3rem;
+}
+p.tablecaption, table caption {
+  color: #666;
+  font-weight: bold;
+  text-indent: 0;
+}
+div.image {
+  text-align: center;
+}
+div.column {
+  padding: 0.8rem 1.5rem;
+  border: solid 3px gray;
+  border-radius: 0.3rem;
+}
+div.column h4 {
+  margin-top: 0;
+}
+
+/* ブロック系の途中で改ページされるのを避ける。本当はかかってもいいんだけど脚注がある時に背景がぶっ壊れる… */
+pre.cmd {
+  page-break-inside: avoid;
+}
+pre.list, pre.emlist {
+  page-break-inside: avoid;
+}
+table {
+  page-break-inside: avoid;
+}
+
+@page {
+  size: A4;
+  /* トンボ */
+  marks: crop cross; 
+
+  /* 裁ち落としのとこまで塗りたかったら pentapod本を トンボ で検索 */
+}
+
+@page {
+  margin: 20mm;
+}
+@page :left {
+  margin-left: 30mm;
+  padding: 1rem;
+
+  @top-left {
+    /* 本当は現在の深さ1の見出しを出したい */
+    /* かつ、sectionの1ページ目だったら出したくない */
+    content: "Now and Features";
+    vertical-align: bottom;
+    border-bottom: solid 1px black; 
+  }
+  @top-right {
+    content: "　"; /* 内容ないと枠でない */
+    border-bottom: solid 1px black; 
+  }
+  @top-center {
+    content: "　"; /* 内容ないと枠でない */
+    border-bottom: solid 1px black; 
+  }
+
+  @bottom-center {
+    content: "←" counter(page);
+  }
+}
+
+@page :right {
+  margin-right: 30mm;
+  padding: 1rem;
+
+  @top-right {
+    /* 本当は現在の深さ2の見出しを出したい */
+    /* かつ、sectionの1ページ目だったら出したくない */
+    content: "Now and Features";
+    vertical-align: bottom;
+    border-bottom: solid 1px black; 
+  }
+  @top-left {
+    content: "　"; /* 内容ないと枠でない */
+    border-bottom: solid 1px black; 
+  }
+  @top-center {
+    content: "　"; /* 内容ないと枠でない */
+    border-bottom: solid 1px black; 
+  }
+  
+  @bottom-center {
+    content: counter(page) "→";
+  }
+}
+
+/* NOTE これイケるのでは？と思ったけどダメだった
+@page tomorrowkey:right {
+  @top-right {
+    content: "ともっきーだよー";
+  }
+}
+section.tomorrowkey {
+  page: tomorrowkey;
+}
+ */
+
+ /* NOTE これもイケるのでは？と思ったけどサポートされてなさそう
+@page :right {
+  @top-right {
+    content: element(chaptitle);
+  }
+}
+section h1 {
+  position: running(chaptitle);
+}
+ */
+
+@page :first {
+  padding-top: 0mm;
+}
+
+.width-010per { width:  10%; }
+.width-020per { width:  20%; }
+.width-025per { width:  25%; }
+.width-030per { width:  30%; }
+.width-033per { width:  33%; }
+.width-040per { width:  40%; }
+.width-050per { width:  50%; }
+.width-060per { width:  60%; }
+.width-067per { width:  67%; }
+.width-070per { width:  70%; }
+.width-075per { width:  75%; }
+.width-080per { width:  80%; }
+.width-090per { width:  90%; }
+.width-100per { width: 100%; }
