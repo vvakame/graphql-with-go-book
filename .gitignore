@@ -2,6 +2,8 @@ node_modules/
 articles/*.pdf
 articles/*-pdf/
 
+.envrc
+
 # Graphvizとか使うと生成されるやつ
 articles/images/html/
 articles/images/latex/

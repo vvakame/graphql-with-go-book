@@ -29,7 +29,7 @@ Sign in with GitHubから認証を済ませたら準備完了です。
 帰ってきたデータが、筆者の場合@<list>{query-viewer-result}です。
 
 //list[query-viewer][viewerを調べる]{
-#@mapfile(../code/github-v4/query-viewer.graphql)
+#@mapfile(../code/github-v4/text/query-viewer.graphql)
 {
   viewer {
     login
@@ -39,7 +39,7 @@ Sign in with GitHubから認証を済ませたら準備完了です。
 //}
 
 //list[query-viewer-result][クエリの結果]{
-#@mapfile(../code/github-v4/query-viewer.graphql.result)
+#@mapfile(../code/github-v4/text/query-viewer.graphql.result)
 {
   "data": {
     "viewer": {
@@ -78,7 +78,7 @@ Queryはデータの取得、Mutationはデータの変更、ここにはあり�
 
 Queryの内容を見てみて、興味のありそうなものを適当に見て回ってみましょう。
 筆者は@<code>{repositoryOwner(login: String!): RepositoryOwner}という引数付きフィールド（@<img>{document-query-repositoryOwner}）に興味を惹かれました。
-先程、viewerを見た時にUserという型がありました、ここでの返り値がUser型ではないのはなぜでしょうか。
+さきほど、viewerを見た時にUserという型がありました、ここでの返り値がUser型ではないのはなぜでしょうか。
 
 //image[document-query-repositoryOwner][RepositoryOwnerとは…？]{
 //}
@@ -92,8 +92,103 @@ GitHubも長い歴史があり、途中からGraphQLを導入するためにさ�
 
 == ドキュメントを元にQueryを書いてみる
 
-TODO
+というわけで、GraphiQL上でクエリを書く時は入力補完で気持ちよくスイスイと書けますので、実際に書いてみましょう。
+
+突然ですが問題です！
+"github" Organizationのもつメールアドレスを調べてみましょう！
+
+解答は読者への宿題とします。
 
 == Goでクライアントを書く
 
-TODO
+はい。
+APIの要点を理解するには3rd partyパッケージを使わずに試すのが一番！ということで、Goで適当にリクエストを投げてみます（@<list>{go-client/main.go}）。
+クエリと変数をPOSTで投げるだけです。
+実行には環境変数に@<code>{GITHUB_TOKEN}という名前でPersonal Access Token@<fn>{pat}をセットしておく必要があります。
+クエリの部分毎に必要なパーミッションは異なるので、自分で必要だと思う権限を付与しておきましょう。
+このサンプルコードの場合、@<code>{read:org}の権限が必要です。
+
+//footnote[pat][@<href>{https://github.com/settings/tokens}]
+
+//list[go-client/main.go][所定の形式でPOST投げるだけ]{
+#@mapfile(../code/github-v4/go-client/main.go)
+package main
+
+import (
+  "bytes"
+  "encoding/json"
+  "fmt"
+  "io/ioutil"
+  "net/http"
+  "net/url"
+  "os"
+)
+
+func main() {
+  githubToken := os.Getenv("GITHUB_TOKEN")
+  query := `
+    query ($login: String!) {
+      organization(login: $login) {
+        name
+        email
+      }
+    }
+  `
+  b, err := json.Marshal(struct {
+    Query    string                 `json:"query"`
+    Variable map[string]interface{} `json:"variables"`
+  }{
+    Query: query,
+    Variable: map[string]interface{}{
+      "login": "github",
+    },
+  })
+  if err != nil {
+    panic(err)
+  }
+
+  endpointURL, err := url.Parse("https://api.github.com/graphql")
+  if err != nil {
+    panic(err)
+  }
+  buf := bytes.NewBuffer(b)
+  resp, err := http.DefaultClient.Do(&http.Request{
+    URL:    endpointURL,
+    Method: "POST",
+    Header: http.Header{
+      "Content-Type":  {"application/json"},
+      "Authorization": {"bearer " + githubToken},
+    },
+    Body: ioutil.NopCloser(buf),
+  })
+  if err != nil {
+    panic(err)
+  }
+  b, err = ioutil.ReadAll(resp.Body)
+  if err != nil {
+    panic(err)
+  }
+
+  fmt.Println(string(b))
+}
+#@end
+//}
+
+実行結果は@<list>{go-client/main.go:result}です。
+なるほどなるほど。
+
+//list[go-client/main.go:result][得られたレスポンス]{
+{
+  "data": {
+    "organization": {
+      "name": "GitHub",
+      "email": "support@github.com"
+    }
+  }
+}
+//}
+
+ところで、GraphQLの仕様にはHTTPレベルでの仕様は決められていません。
+よって、今回のこのAPIの叩き方以外にも、GETメソッドで叩く方法なども存在しています。
+SubscriptionのためにWebSocketを使ったり、ファイルアップロードのためにmultipartを使った方法が模索されていたり、色々な亜種があります。
+とはいえ、基本はPOSTをつかったこのやり方が一般的です。

@@ -87,3 +87,8 @@ ResolverがNodeを生成し、Nodeがツリー構造を成し、これがレス�
 == GraphQLの勉強の仕方
 
 TODO
+
+TODO
+//comment{
+https://github.com/mercari/mtc2018-web/pull/134 とか mtcで色々試したことについて言及する
+//}
