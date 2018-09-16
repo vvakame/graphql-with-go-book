@@ -1,0 +1,17 @@
+type Query {
+	eventList(first: Int): [Event!]!
+}
+
+type Event {
+	id: ID!
+	name: String!
+
+	circleList(first: Int): [Circle!]!
+}
+
+type Circle {
+	id: ID!
+	name: String!
+
+	event: Event!
+}

@@ -32,7 +32,7 @@ gqlgenでは厄介な（素晴らしい）ことに、Resolverは並行に動作
 とすると、処理をバッファする期間を一定時間とするのはある程度妥当であると思われます。
 
 #@# prh:disable
-さて、筆者はgqlgenを技術書典Webサイトで動かそうとしていますが、dataloadenを使っていません。
+さて、筆者はgqlgenを技術書典Webサイトで動かそうとしていますが、dataloadenを使っていません。
 技術書典WebサイトはAppEngine/Go上で動いています。
 もちろんDBはDatastoreです。
 
@@ -94,19 +94,154 @@ GraphiQLの外のドキュメントを見に行かねばならない場合、Gra
 
 == Relay Global Object Identification
 
-TODO
-https://facebook.github.io/relay/graphql/objectidentification.htm
-databaseIDを作った話
-クライアント側でURLからIDを切り出したうんぬん
+めんどくさ仕様No.1の話です。
+こいつがどういう仕様かというと、@<code>{interface Node { id: ID! \}}インタフェースを作りましょう。
+@<code>{node(id: ID!): Node}をQueryの定義に生やしましょう。
+IDはシステム全体でデータを一意に定められるようにしましょう。
+というものです。
+そうすると、データの更新やらなにやらで便宜をはかってあげますよ、というものらしいです。
+仕様自体は@<href>{https://facebook.github.io/relay/graphql/objectidentification.htm}にあります。
+
+さて、こいつのめんどくさいところはご利益がわかりにくいところです。
+筆者はまだこの仕様をサポートすることによりどういうメリットが得られるのか体感できていません。
+そのくせ、実装がすこぶるめんどくさいので、やる気がでません@<fn>{global-id-pros}。
+
+//footnote[global-id-pros][IDが一意になればMutationやSubscriptionの返り値にしたがって部分木を自動更新… とかはまぁ分かるんだけど…]
+
+IDでデータを一意に定められるようにする、というのが特にめんどくさいポイントです。
+Userテーブルがあり、CircleExhibitInfoテーブルがあり、CircleTicketテーブルがあり、コレ以外にもさまざまなテーブルがあります。
+これらに含まれるすべてのデータを一意に識別できなければいけないわけで、いわゆるAUTO INCREMENT的なPKの運用をしているとそれ単体ではテーブルが識別できなくて辛い気持ちになります。
+
+GitHubのGraphQLエンドポイントはすでにこの仕様をサポートします。
+試しに自分のIDを調べてみると、@<code>{MDQ6VXNlcjEyNTMzMg==}というIDが返ってきます。
+これをBase64 decodeしてみると@<code>{04:User125332}が得られます。
+さらに、databaseIdというフィールドが別途存在していて、125332という値が入っています。
+これはつまり、v4 API経由のUserテーブルの125332というPKのデータ、という意味なのでしょう。
+
+多くのREST APIベースのシステムではテーブルのPKをIDとして扱い、URLにも組み込んでしまっているでしょう。
+たとえば、@<href>{https://techbookfest.org/event/tbf05/circle/33000001}のような感じです。
+このURLからIDを切り出し、@<code>{GET /api/circle/33000001}を叩いたりするわけです。
+同じことをこの仕様のもとにやろうとした場合、@<code>{/event/tbf05/circle/Q2lyY2xlRXhoaWJpdEluZm86MzMwMDAwMDEK}のようなURL設計にするか、Global IDをアプリ側で合成できる必要があります。
+そのため、Global IDの書式をどのようにするか、というのはなかなか難しいであると思われます。
+今の所、技術書典では@<code>{base64.RawURLEncoding.EncodeToString("CircleExhibitInfo:33000001")}方式を採用する予定です。
+しかし、メル社内でMTC2018@<fn>{mtc2018}を作る際、@<code>{"CircleExhibitInfo:33000001"}的な形式でよくね？humanreadableで何か問題ある？という議論も行われ、現時点で最適解は定まっていません。
+筆者的にも別にbase64にする必要はないのでは…？みたいな顔をし始めたところです。
+
+//footnote[mtc2018][@<href>{https://github.com/mercari/mtc2018-web}]
+
+WebページとしてのURL設計については、RESTfulな構造から脱出するのは難しく、また脱出したところで益がありません。
+よって、RESTfulなURL設計とGraphQLでのIDの設計についてどう折り合いをつけるか、というのは必ず気にするべきポイントです。
+なんなら、Relay Global Object Identificationを捨てる、という選択も視野に入るかもしれません。
+
+やるとわかりますが@<code>{interface Node { id: ID! \}}の実装もクソめんどくさいです。
+gqlgen以外だとなんか楽な仕掛けがあったりするんだろうか…。
 
 == GitHub v4 APIから設計を読み取る
+
+ここまでの項目でもさんざん参考にしているので、みなさんもやっていきましょう。
+GitHubのAPIはv3までは普通にREST APIで、サーバ側もRailsですので実装に苦闘の痕を伺うことができて面白いです。
+逆に、あまり見習うべきではないパーツもありますので注意しましょう。
 
 TODO
 
 == GraphQLのセキュリティ
 
-TODO
-まぁcomplexity
+セキュリティ面についても少し触れます。
+GraphQLでも通常のREST API的な開発と同様の内容は踏襲していきます。
+入力された引数を信じない、プレースホルダ的なものをしっかり使う、などはGraphQLでも普通に気をつけましょう。
+
+GraphQL固有の問題はというと、"柔軟なクエリを書けてしまう"問題があります。
+たとえば、過去のイベントを5件取得し、それにぶら下がるサークルを100件取得し、そのサークルが属するイベントを取得し、それにぶらさがる（略）、のような乱暴なクエリを書いたりしていくとあっという間にコストが爆発します。
+GraphQLの場合、ツリーの節が増えるごとに掛け算式に取得するデータが増えていきます。
+このようなDDoSを意図していなくてもDDoSになりがちなクエリに対して、どのように実行する前に防御するか、というところが肝心です。
+
+GitHubが採用している方式として、Node limitとRate limitがあります。
+それぞれざっくり、指定したクエリが得られる最大のツリーのNodeの数、そして1時間あたりに使えるコスト（≒Node limitsの和）の数です。
+
+//footnote[github-limits][@<href>{https://developer.github.com/v4/guides/resource-limitations/}]
+
+これを踏まえて見ると、GitHubのクエリ系は必ず件数のlimitを指定させる設計になっていて、クエリ実行前に最大のNode数が計算できるよう工夫されています。
+これは我々も見習うべき知見で、データが何個あるか知らんけど無限に返したろｗｗｗ みたいなことをするとコスト計算ができずにめちゃめちゃ負荷のかかるクエリを実行してしまう可能性があります。
+
+gqlgenにも同様のコスト計算のための仕組みがあります。
+それがcomplexityです@<fn>{gqlgen-complexity}。
+complexity自体はgraphql-rubyにもある@<fn>{graphql-ruby-complexity}考え方です。
+
+//footnote[gqlgen-complexity][@<href>{https://gqlgen.com/reference/complexity/}]
+//footnote[graphql-ruby-complexity][@<href>{http://graphql-ruby.org/queries/complexity_and_depth} gqlgenよりこっちのほうが先]
+
+それでは、試しにコスト計算をしてみます。
+@<list>{complexity-query}のクエリについて考えます。
+gqlgenのデフォルトの計算だとどれが件数なのかなどは判別してくれないため、ものすごい雑に足し算されてコスト4にされてしまいます。
+なので、@<list>{complexity.go}のように件数を考慮する式を自分で定義します。
+
+//list[complexity-query][試しにコスト計算してみる]{
+query {
+  # このクエリのコストは200
+  # 子（20）×10 で 200
+  eventList(first: 10) {
+    # 子（2）×10 で 20
+    circleList(first: 10) {
+      # ↓ field1個で1 2個なので2
+      id
+      name
+    }
+  }
+}
+//}
+
+//list[complexity.go][件数指定のある箇所はそれを子要素のコストにかける]{
+#@mapfile(../code/best-practice/complexity.go)
+package best_practice
+
+const ComplexityLimit = 200
+
+func NewComplexity() ComplexityRoot {
+  complexityRoot := ComplexityRoot{}
+
+  complexityRoot.Query.EventList = func(childComplexity int, first *int) int {
+    if first == nil {
+      // 指定無しはエラーにしたいけどそれはResolver側に任せる
+      return 1 + childComplexity
+    }
+
+    return *first * childComplexity
+  }
+
+  complexityRoot.Event.CircleList = func(childComplexity int, first *int) int {
+    if first == nil {
+      // 指定無しはエラーにしたいけどそれはResolver側に任せる
+      return 1 + childComplexity
+    }
+
+    return *first * childComplexity
+  }
+
+  return complexityRoot
+}
+#@end
+//}
+
+めんどくさいですがこの定義を与えてやるとクエリ実行前にいい感じにコスト計算を行ってくれるようになります。
+
+流石になんぼなんでもめんどくさいのでもうちょっと楽な仕組みを考えたいところではあります。
+struct tagからコスト設定を読むとか特定のネーミングルールのときにコスト計算を自動化するとかしたいですね。
+また、深い箇所のフィールド数を増やすとコストにモロに響くので、DBから一括で取り出せるフィールドについてはコスト計算を甘くしたいなどの欲求があります。
+これらは今のgqlgenではサポートされておらず、将来的には僕が頑張るかもしれないけど今のところやる余力がないので先延ばしです！
+
+さらにいろいろ知りたい場合、How to GraphQLの解説@<fn>{hot-to-graphql-security}にはセキュリティに限らず秀逸な解説が多いので目を通してみるとよいでしょう。
+
+//footnote[hot-to-graphql-security][@<href>{https://www.howtographql.com/advanced/4-security/}]
+
+//comment{
+TODO gqlgenの実装について
+ * スタッフの場合無制限に実行させるオプションがほしい
+ * クエリのcomplexityをロギングする方法がほしい
+ * GitHub方式の計算方法がほしい
+   * 手で頑張ればいけそうな気がするが
+ * struct tagからコスト読み取るやつほしい
+ * Relay Connectionの仕様に則ってそれっぽい計算を自動でやってくれる仕組みほしい
+//}
 
 == ユーザの認証について
 

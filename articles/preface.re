@@ -2,6 +2,11 @@
 
 本書はGraphQLサーバをGo言語で構築していく本です。
 筆者もコミッタになっている@<href>{https://github.com/99designs/gqlgen,github.com/99designs/gqlgen}の利用を前提として解説します。
+本書執筆時点でのgqlgenのバージョンは次のとおりです。
+
+//cmd{
+$ TODO
+//}
 
 残念ながら、筆者はまだGraphQLを使ったなんらかのAPIサーバをリリースできていません。
 よって、ここで語られる知見は今後アップデートされ、変わっていく可能性があります。
