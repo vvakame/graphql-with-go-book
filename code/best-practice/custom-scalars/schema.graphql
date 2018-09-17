@@ -1,0 +1,10 @@
+type Query {
+	sample: Sample
+}
+
+scalar Int64
+
+type Sample {
+    id: ID!
+    value: Int64
+}

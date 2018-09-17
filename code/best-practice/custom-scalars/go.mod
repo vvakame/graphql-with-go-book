@@ -1,4 +1,4 @@
-module github.com/vvakame/graphql-with-go-book/code/best_practice
+module github.com/vvakame/graphql-with-go-book/code/best-practice/custom_scalars
 
 require (
 	github.com/99designs/gqlgen v0.5.1

@@ -1,0 +1,4 @@
+schema: schema.graphql
+models:
+  Int64:
+    model: github.com/vvakame/graphql-with-go-book/code/best-practice/custom-scalars.GraphQLInt64Scalar

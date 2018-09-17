@@ -1,4 +1,4 @@
-package best_practice
+package complexity_sample
 
 const ComplexityLimit = 200
 

@@ -94,6 +94,7 @@ GraphiQLの外のドキュメントを見に行かねばならない場合、Gra
 
 == Relay Global Object Identification
 
+#@# prh:disable
 めんどくさ仕様No.1の話です。
 こいつがどういう仕様かというと、@<code>{interface Node { id: ID! \}}インタフェースを作りましょう。
 @<code>{node(id: ID!): Node}をQueryの定義に生やしましょう。
@@ -118,6 +119,7 @@ GitHubのGraphQLエンドポイントはすでにこの仕様をサポートし�
 さらに、databaseIdというフィールドが別途存在していて、125332という値が入っています。
 これはつまり、v4 API経由のUserテーブルの125332というPKのデータ、という意味なのでしょう。
 
+#@# prh:disable
 多くのREST APIベースのシステムではテーブルのPKをIDとして扱い、URLにも組み込んでしまっているでしょう。
 たとえば、@<href>{https://techbookfest.org/event/tbf05/circle/33000001}のような感じです。
 このURLからIDを切り出し、@<code>{GET /api/circle/33000001}を叩いたりするわけです。
@@ -127,6 +129,7 @@ GitHubのGraphQLエンドポイントはすでにこの仕様をサポートし�
 しかし、メル社内でMTC2018@<fn>{mtc2018}を作る際、@<code>{"CircleExhibitInfo:33000001"}的な形式でよくね？humanreadableで何か問題ある？という議論も行われ、現時点で最適解は定まっていません。
 筆者的にも別にbase64にする必要はないのでは…？みたいな顔をし始めたところです。
 
+#@# prh:disable
 //footnote[mtc2018][@<href>{https://github.com/mercari/mtc2018-web}]
 
 WebページとしてのURL設計については、RESTfulな構造から脱出するのは難しく、また脱出したところで益がありません。
@@ -175,6 +178,7 @@ complexity自体はgraphql-rubyにもある@<fn>{graphql-ruby-complexity}考え�
 gqlgenのデフォルトの計算だとどれが件数なのかなどは判別してくれないため、ものすごい雑に足し算されてコスト4にされてしまいます。
 なので、@<list>{complexity.go}のように件数を考慮する式を自分で定義します。
 
+#@# prh:disable
 //list[complexity-query][試しにコスト計算してみる]{
 query {
   # このクエリのコストは200
@@ -190,9 +194,10 @@ query {
 }
 //}
 
+#@# prh:disable
 //list[complexity.go][件数指定のある箇所はそれを子要素のコストにかける]{
-#@mapfile(../code/best-practice/complexity.go)
-package best_practice
+#@mapfile(../code/best-practice/complexity-sample/complexity.go)
+package complexity_sample
 
 const ComplexityLimit = 200
 
@@ -245,23 +250,95 @@ TODO gqlgenの実装について
 
 == ユーザの認証について
 
-TODO
+GraphQLには認証周りの仕様が存在していません。
+というわけでCookieでセッションを使うなりOAuth2を使うなり好きなものをセレクトしましょう。
+
+個人的にはOAuth2を採用していきたいところです。
+モバイルアプリを考えるとCookieはちょっと…。
+今のところ、Goで自分が@<kw>{IdP,Identity Provider}になれる楽な方法は模索中です。
+仕事の都合で前に検討した時はory/fosite@<fn>{fosite}をベースに実装するのがよさそう…という感じでした。
+
+//footnote[fosite][@<href>{https://github.com/ory/fosite}]
+
+いい感じのソリューションを見つけた人はぜひサンプルコードのあるリポジトリのURLを筆者までお伝え下さい。
 
 == 無理をしない型定義
 
-TODO
-DBの1テーブル=1typeくらいの感じで
-変な工夫すると辛い目にあう
-可視性とかによってCircle, CircleForOwner, CircleForStaffとかすると @<code>{node(id: ID!)} で詰む
+REST APIで色々と"頑張った"型定義をしていた場合、GraphQL上で辛い目にあうことがあります。
+具体的に、技術書典では@<code>{CircleExhibitInfo}と@<code>{CircleExhibitInfoSecret}という2つのKind@<fn>{whats-kind}があります。
+1つは公開情報やら何やらをもつKind、もう片方がサークル主の個人情報などをもつKindです。
+プログラミングミスで見えてはいけないものが見えてしまう危険性を減らすために分割しています。
+さて、REST APIではこの2つをembeddedしたsturctをJSONにして返しています。
+つまり、この2つを合体させたJSONが返るわけです。
+
+//footnote[whats-kind][KindはDatastore用語で、ざっくりテーブルと同じ意味だと思ってください]
+
+これに対して、さらにユーザの種類による可視性の制御が入ります。
+たとえば、サークルが入力している持ち込み部数は現時点では外部に公開していません。
+これは、サークル主とスタッフ権限持ちの人間のみが見ることができます。
+
+さて、GraphQLにこれを落とす時、どうモデリングするのがよいでしょうか？
+結論からいうと、Directiveを使って制御しつつ、Kindの素直に従った構成にするのが正解のようです。
+
+筆者がgqlgenに取り組み始めた時はDirectiveサポートがまだなかったので、色々と試行錯誤しました。
+CircleExhibitInfoを可視性毎にCircle、CircleForOwner、CircleForStaffに分割し提供するようにしてみました。
+この構成の問題点は前述のRelay Global Object Identificationと組み合わせた時が辛いです。
+DB上は同じモノを可視性に応じて別々のID振るとかわりと狂気を感じます。
+単純にハンドリングするコードを書く手間はすごいのでまぁ普通に心が折れます。
+
+で、心が折れたのでgqlgenがDirectiveをサポートするための手伝いをして、Directiveを使うことにしました。
+Directiveであれば、統一的な仕組みでフィールド単位で見せたり見せなかったりを制御しやすいです。
 
 == Directiveを使い倒せ
 
-TODO
+というわけでDirectiveを使いましょう。
+gqlgenではDirectiveは次のシグニチャの実装を与えます@<fn>{gqlgen-directive}。
+#@# prh:disable
+@<code>{func (ctx context.Context, obj interface{\}, next graphql.Resolver, requires *graph.Role) (interface{\}, error)}
 
-=== スキーマから読み取れる情報を増やす
+//footnote[gqlgen-directive][@<href>{https://gqlgen.com/reference/directives/} 詳細はここで]
 
-TODO
-多いと幸せである仮説がある
+挙動は実際に自分で試して確かめてください。
+nextを呼ぶと次のResolverを呼びにいってしまいます。
+つまり、アクセス制御を行うのであれば基本はnextを呼ぶ前に行うべきです。
+特に、Mutationのときにそれをやると副作用が発生した後に処理を行うことになり、意味がありません。
+しっかりテストしよう！
+
+Directiveは色々な用途に使うことができますが、筆者の主な用途は可視性制御です。
+@<list>{has-role-directive}のように@<code>{@hasRole}というDirectiveを用意しています。
+先のCircleExhibitInfoとSecretの例では、現時点ではCircleExhibitInfoに@<code>{secret: CircleExhibitInfoSecret @hasRole(requires: RESOURCE_OWNER)}というフィールドをもたせています。
+これにより、サークル主かスタッフしか個人情報系のデータを参照できないようにしているわけです。
+
+//list[has-role-directive][hasRoleで権限制御]{
+enum Role {
+  PUBLIC
+  LOGGED_IN
+  RESOURCE_OWNER
+  STAFF
+}
+
+directive @hasRole(requires: Role) on OBJECT | FIELD_DEFINITION
+//}
+
+さて、Directiveを使うことでSchema上のどのフィールドがどういう制御を利用しているかが自動的にドキュメント化されることになります。
+これはクエリを書く人にとっても、そのフィールドにアクセスするにはどういう権限が必要かが一目瞭然です。
+まさにGraphQLらしい、GraphiQL上で完結する素晴らしい…すばらしい……すばらしい………？
+あれ…どのフィールドやオブジェクトにどういうDirectiveが指定されているかIntropectionで調べる仕組みがSpec上に存在していない…だと…？
+
+ふーざーけーるーなー！
+ああああああああああああああ！
+well documentedな計画があああああああああ！
+オポチュニティがたりなくなるうううううう！
+折れちゃう！
+折れちゃううううううううううう！
+
+ぐっ… うぅ…今この原稿を書いている今の今まで気がついてなかった…。
+まさかDirectiveの情報がIntrospectionから取れない仕様だった@<fn>{directive-instrospection}なんて…。
+あんまりだぁぁあぁぁぁぁ…。
+
+//footnote[directive-instrospection][@<href>{https://github.com/facebook/graphql/issues/300}]
+
+対策として、ドキュメントをしっかり書く、権限チェックエラーが発生した時のエラーメッセージをわかりやすく、親切にする、などの対応をしていきましょう。
 
 == 生成されるコードと実装のコードはpackageを分けるべき？
 
@@ -270,7 +347,77 @@ gqlgenでの話
 
 == Int64とか
 
-TODO
+int64は自前でマーシャラを用意します。
+JavaScript（JSONではない）の仕様として、64bit幅の整数値を数値として扱うことができません。
+なので適当にStringにしてやる必要があります。
+それが辛い人は祈ってください@<fn>{js-bigint}。
+しらんけど。
+
+//footnote[js-bigint][@<href>{https://github.com/tc39/proposal-bigint}]
+
+gqlgenでの実装を見ていきます（@<list>{custom-scalars/schema.graphql}、@<list>{custom-scalars/custom_scalars.go}、@<list>{custom-scalars/gqlgen.yml}）。
+要点は3点、スキーマ上で型を宣言する、変換用Goコードを準備する、宣言とコードを紐づけするための設定を書く、以上！
+公式の説明も参照してください@<fn>{gqlgen-custom-scalars}。
+
+//list[custom-scalars/schema.graphql][カスタムのスカラ型を用意する]{
+#@mapfile(../code/best-practice/custom-scalars/schema.graphql)
+type Query {
+  sample: Sample
+}
+
+scalar Int64
+
+type Sample {
+    id: ID!
+    value: Int64
+}
+#@end
+//}
+
+//list[custom-scalars/custom_scalars.go][自分でマーシャラを定義する]{
+#@mapfile(../code/best-practice/custom-scalars/custom_scalars.go)
+package custom_scalars
+
+import (
+  "fmt"
+  "io"
+  "strconv"
+
+  "github.com/99designs/gqlgen/graphql"
+)
+
+// MarshalGraphQLInt64Scalar returns int64 to GraphQL Scalar value marshaller.
+func MarshalGraphQLInt64Scalar(v int64) graphql.Marshaler {
+  return graphql.WriterFunc(func(w io.Writer) {
+    s := fmt.Sprintf(`"%d"`, v)
+    w.Write([]byte(s))
+  })
+}
+
+// UnmarshalGraphQLInt64Scalar returns int64 value from GraphQL value.
+func UnmarshalGraphQLInt64Scalar(v interface{}) (int64, error) {
+  switch v := v.(type) {
+  case string:
+    return strconv.ParseInt(v, 10, 64)
+  case int64:
+    return v, nil
+  default:
+    return 0, fmt.Errorf("%T is not a int64", v)
+  }
+}
+#@end
+//}
+
+//list[custom-scalars/gqlgen.yml][設定でInt64に対して使うマーシャラの指定をする]{
+#@mapfile(../code/best-practice/custom-scalars/gqlgen.yml)
+schema: schema.graphql
+models:
+  Int64:
+    model: github.com/vvakame/graphql-with-go-book/code/best-practice/custom-scalars.GraphQLInt64Scalar
+#@end
+//}
+
+//footnote[gqlgen-custom-scalars][@<href>{https://gqlgen.com/reference/scalars/}]
 
 == テストの書き方について
 

@@ -1,6 +1,6 @@
 //go:generate gorunpkg github.com/99designs/gqlgen
 
-package best_practice
+package custom_scalars
 
 import (
 	"context"
@@ -18,6 +18,6 @@ func (r *Resolver) Query() QueryResolver {
 
 type queryResolver struct{ *Resolver }
 
-func (r *queryResolver) EventList(ctx context.Context, first *int) ([]Event, error) {
+func (r *queryResolver) Sample(ctx context.Context) (*Sample, error) {
 	panic("not implemented")
 }
