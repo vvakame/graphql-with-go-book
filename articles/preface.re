@@ -5,7 +5,9 @@
 本書執筆時点でのgqlgenのバージョンは次のとおりです。
 
 //cmd{
-$ TODO
+#@# docker に go 入れるのだるいので #@mapoutput(cd ../code && go list -m -u github.com/99designs/gqlgen)
+github.com/99designs/gqlgen v0.5.1
+#@# #@end
 //}
 
 残念ながら、筆者はまだGraphQLを使ったなんらかのAPIサーバをリリースできていません。
