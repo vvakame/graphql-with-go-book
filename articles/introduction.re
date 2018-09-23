@@ -4,7 +4,7 @@
 GraphQLは銀の弾丸ではないですが、フロント側の開発体験を改善するものであると筆者は考えています。
 
 GraphQLはGraph Query Languageの名のとおり、グラフ構造に対するクエリ言語です。
-大本をFacebookが考案しただけあって、友人関係などのグラフ構造を画面に描画するために取得するための言語と言えます。
+大本をFacebookが考案しただけあって、友人関係などのグラフ構造を画面に描画するために取得するための言語といえます。
 クエリの対象としてはグラフ構造（的な何か）ですが、レスポンスはツリー構造になります。
 
 == GraphQLを用いる目的
@@ -59,12 +59,19 @@ Fragmentを使わずに効率的にやろうとした場合、結局クエリが
 
 //footnote[prisma][@<href>{https://www.prisma.io/}]
 
-== introspectionがつよい
+== Introspectionがつよい
 
-TODO
-ツール化しやすさ
-Playgroundの体験の良さ
-型付されている話
+Introspection（自己観察）が強いです。
+GraphQLは色々なデータに対してクエリを投げ、結果を取得することができます。
+この構造はメタ的なデータについても同様で、あるGraphQLサーバがどういうオペレーションを持ち、どういう型があり、それらがどういうフィールドをもつのかをクエリで調べることができます。
+自己言及的ですね。
+
+この構造はかなり強く、多くのツールがこの機能をフルに活用しています。
+なんなら、関連仕様の記述もIntrospectionからの返り値をコピペして済ませている箇所すらあります。
+つよい！
+
+GraphQLはきっちりと型付けされていて、しかもその情報をサーバから引き出せるわけですのでWeb UIなども非常に洗練されていて使い心地がよいです。
+そしてクエリも投げる前にサーバが受付可能であるかを事前にチェックするため、多くの実行時エラーを減らすことに成功しています。
 
 == 一瞬で腑に落ちるGraphQLサーバの概念
 
@@ -86,9 +93,23 @@ ResolverがNodeを生成し、Nodeがツリー構造を成し、これがレス�
 
 == GraphQLの勉強の仕方
 
-TODO
+とりあえず@<href>{https://www.howtographql.com/}を読むのがいいと思います。
+そして仕様@<fn>{graphl-spec}も読むとよいでしょう。
+GraphQLの仕様は転送方法レベルの話はないのでざっくり斜め読みでよいでしょう。
+何ならAppendixのGrammar Summaryだけでもよいかもしれません。
 
-TODO
+//footnote[graphl-spec][@<href>{https://facebook.github.io/graphql/}]
+
+市井の記事はクライアント側の話に偏っているため、サーバ側の知見はわりと自分で試して覚えろ的なところがあります。
+また、Node.jsやRubyでの事例が多いため、gqlgenについてはこれからといえそうです。
+やっていきましょう。
+@<href>{https://gitter.im/gqlgen/Lobby}に公式のチャットルームがあるので活用するとよいでしょう。
+
+筆者が今まで勉強してきた軌跡は@<href>{http://b.hatena.ne.jp/vvakame/GraphQL}にあります。
+また、Mercari Tech Conf 2018のサイトでもgqlgenを使っています。
+このソースは@<href>{https://github.com/mercari/mtc2018-web}で公開しているので、眺めてみるのもよいでしょう。
+
 //comment{
+TODO
 https://github.com/mercari/mtc2018-web/pull/134 とか mtcで色々試したことについて言及する
 //}
