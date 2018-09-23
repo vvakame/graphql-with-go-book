@@ -10,4 +10,5 @@ CHAPS:
   - system-operation.re
 
 POSTDEF:
+  - afterword.re
   # - contributors.re
