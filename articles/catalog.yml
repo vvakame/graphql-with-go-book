@@ -5,6 +5,7 @@ CHAPS:
   - introduction.re
   - github-v4.re
   - graphql-spec.re
+  - gqlgen.re
   - best-practice.re
   - system-operation.re
 
