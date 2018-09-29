@@ -26,7 +26,9 @@ github.com/99designs/gqlgen v0.5.1
 
  * GraphQLの仕様自体に対しての懇切丁寧な説明
  * 特定のクライアント側ツールに関する話
- * クライアント側についての設計のベストプラクティス
+ * クライアント側についての設計のベストプラクティス@<fn>{mtc-front}
+
+//footnote[mtc-front][ちょっとだけあるからここ見て→@<href>{https://github.com/mercari/mtc2018-web/pull/134}]
 
 //comment{
  * TODO 某wikiに書いた内容をもう一回読み返して盛り込む
