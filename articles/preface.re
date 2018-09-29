@@ -1,7 +1,10 @@
 = はじめに
 
 本書はGraphQLサーバをGo言語で構築していく本です。
-筆者もコミッタになっている@<href>{https://github.com/99designs/gqlgen,github.com/99designs/gqlgen}の利用を前提として解説します。
+と思いきやベストプラクティスを書ききったところで割と力尽きたのでツール自体の使い方の話は少ないです。
+後日、@<href>{https://github.com/vvakame/graphql-with-go-book}にて本書の全文を無料公開します。
+
+主に話題にするツールは筆者もコミッタになっている@<href>{https://github.com/99designs/gqlgen,github.com/99designs/gqlgen}です。
 本書執筆時点でのgqlgenのバージョンは次のとおりです。
 
 //cmd{

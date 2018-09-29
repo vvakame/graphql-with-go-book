@@ -19,6 +19,7 @@ github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXf
 github.com/vektah/gqlparser v0.0.0-20180919003821-90edd96486c6 h1:0+bK5s5mQIhPElSejgpTh/NiA11fdwQc5PMROLT+zdM=
 github.com/vektah/gqlparser v0.0.0-20180919003821-90edd96486c6/go.mod h1:K4QdSSpS2XiHHwzb18kWh3iBljB8rLC8okGXsnQy3Nc=
 github.com/vvakame/graphql-with-go-book v0.0.0-20180923135108-2e3fcf05ac0b h1:MF/0jXnmiU61NWjNhizO7N2/uzE75nLp/ch9TxP145Y=
+github.com/vvakame/graphql-with-go-book v0.0.0-20180923152357-1161e75bf6e8 h1:orN6qK2sAnB1RLG44MVbd1DiAZUgaefi2FUPwTI+jtk=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v2 v2.2.1 h1:mUhvW9EsL+naU5Q3cakzfE91YhliOondGd6ZrsDBHQE=

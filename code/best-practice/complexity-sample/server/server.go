@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/99designs/gqlgen/handler"
-	"github.com/vvakame/graphql-with-go-book/code/best-practice/complexity_sample"
+	"github.com/vvakame/graphql-with-go-book/code/best-practice/complexity-sample"
 )
 
 const defaultPort = "8080"

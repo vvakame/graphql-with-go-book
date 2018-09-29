@@ -8,7 +8,8 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 )
 
-// MarshalGraphQLInt64Scalar returns int64 to GraphQL Scalar value marshaller.
+// MarshalGraphQLInt64Scalar returns int64
+// to GraphQL Scalar value marshaller.
 func MarshalGraphQLInt64Scalar(v int64) graphql.Marshaler {
 	return graphql.WriterFunc(func(w io.Writer) {
 		s := fmt.Sprintf(`"%d"`, v)
@@ -16,7 +17,8 @@ func MarshalGraphQLInt64Scalar(v int64) graphql.Marshaler {
 	})
 }
 
-// UnmarshalGraphQLInt64Scalar returns int64 value from GraphQL value.
+// UnmarshalGraphQLInt64Scalar returns int64 value
+// from GraphQL value.
 func UnmarshalGraphQLInt64Scalar(v interface{}) (int64, error) {
 	switch v := v.(type) {
 	case string:

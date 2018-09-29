@@ -6,13 +6,13 @@
 == N+1問題
 
 N+1問題が何かから説明していきましょう。
-たとえば、技術書典のイベント1件につき、サークルが500弱あるわけです。
+たとえば、技術書典の1イベントあたりサークルが500弱あり、そこに頒布物が複数あるわけです。
 これを愚直にDBから取得しようとすると、1+500弱回のクエリが必要になります。
-これがN+1問題といわれるものです。
+これがN+1問題です。
 1+N問題の間違いでは…？
 
 GraphQLでも、何も考えずにコードを書いていくとこの問題が発生します
-GraphQLサーバはResolverの集まりですので、イベントを1件resolveし、そこから派生し500弱のサークルをresolveすることになります。
+GraphQLサーバはResolverの集まりですので、イベントを1件resolveし、それに紐づく500弱のサークルをresolveし、さらにそれぞれの頒布物をresolveします。
 これはN+1問題そのものです。
 
 これを解決するために、複数のResolverでのクエリを一定数バッファリングし、バッチ化する必要があります。
@@ -29,7 +29,7 @@ gqlgenでは厄介な（素晴らしい）ことに、Resolverは並行に動作
 さすがGo言語だぜ！
 ここで各Resolverがなるべく並行して動作し続けられるようにすることを考えます。
 バッチ処理を実際に行うタイミングをResolverの兄弟Resolverがすべて終わったタイミングとすると、もっとも遅いResolverの処理速度に律速されてしまいます。
-とすると、処理をバッファする期間を一定時間とするのはある程度妥当であると思われます。
+であれば、gqlgen+dataloadenのように処理をバッファする期間を一定時間とするのはある程度妥当であると思われます。
 
 #@# prh:disable
 さて、筆者はgqlgenを技術書典Webサイトで動かそうとしていますが、dataloadenを使っていません。
@@ -44,9 +44,13 @@ Datastoreを操作するためのライブラリとして、go.mercari.io/datast
 //footnote[batch-example][@<href>{https://godoc.org/go.mercari.io/datastore#example-package--Batch}]
 
 面白かったトラブルとして、go.mercari.io/datastoreのバッチ処理は何十並列という並行環境に晒されたことがなかったため、バグが潜んでいました。
+この問題については後ほどの節でもう少し詳しく言及します。
+
+//comment{
 具体的に、バッチ処理をExecした時、他のgoroutineがExecした直後だとタスクが空であるため、自分が積んだタスクの終了を待たずに制御が返ってきてしまうという問題がありました。
 これにより、並列処理させると一部のstructがゼロ値で返ってくることがある、という気がつくまではまったく意味のわからないバグに悩まされました。
 読者諸氏も、各Resolverが並行に処理されるということを念頭に正しいコードを書くように心がけましょう。
+//}
 
 == REST APIからの移行
 
@@ -67,8 +71,8 @@ RPCであれば、ドキュメントを調べたり、ソースコードを読�
 しかし、不思議なことにQuery Languageではこの粒度のエラーメッセージが返ってくると耐え難い苦痛を感じます。
 
 これについてよくよく考えると、RPCというのは関数であり、個々の関数の仕様を把握し正しく呼び出すのは呼び出し側の責務であるという意識があるためでしょう。
-対して、Query Languageの場合、syntax自体が正しければエラー無く返ってくるべきと我々は思います。
-SQLをRDBに投げてみたら"bad request"が返ってきたら、普通ブチギレてそのDBMSに悪態をつくでしょう。
+対して、Query Languageの場合、syntax自体が正しければエラー無く返ってくるべきと我々は考えます。
+SQLクエリをRDBに投げてみたら"bad request"が返ってきたら、普通ブチギレてそのDBMSを窓から放り投げるでしょう。
 
 よって、GraphQLではエラーを返す場合、そのクエリのどこが悪かったのか、明快に分かるようなエラーメッセージを返すべきです。
 
@@ -96,9 +100,12 @@ GraphiQLの外のドキュメントを見に行かねばならない場合、Gra
 
 #@# prh:disable
 めんどくさ仕様No.1の話です。
-こいつがどういう仕様かというと、@<code>{interface Node { id: ID! \}}インタフェースを作りましょう。
-@<code>{node(id: ID!): Node}をQueryの定義に生やしましょう。
-IDはシステム全体でデータを一意に定められるようにしましょう。
+仕様についてざっくりと説明すると…。
+
+ 1. @<code>{interface Node { id: ID! \}}インタフェースを作ります
+ 2. @<code>{node(id: ID!): Node}をQueryの定義に生やします
+ 3. IDはシステム全体でデータを一意に定められるようにします
+
 というものです。
 そうすると、データの更新やらなにやらで便宜をはかってあげますよ、というものらしいです。
 仕様自体は@<href>{https://facebook.github.io/relay/graphql/objectidentification.htm}にあります。
@@ -124,9 +131,11 @@ GitHubのGraphQLエンドポイントはすでにこの仕様をサポートし�
 たとえば、@<href>{https://techbookfest.org/event/tbf05/circle/33000001}のような感じです。
 このURLからIDを切り出し、@<code>{GET /api/circle/33000001}を叩いたりするわけです。
 同じことをこの仕様のもとにやろうとした場合、@<code>{/event/tbf05/circle/Q2lyY2xlRXhoaWJpdEluZm86MzMwMDAwMDEK}のようなURL設計にするか、Global IDをアプリ側で合成できる必要があります。
-そのため、Global IDの書式をどのようにするか、というのはなかなか難しいであると思われます。
-今の所、技術書典では@<code>{base64.RawURLEncoding.EncodeToString("CircleExhibitInfo:33000001")}方式を採用する予定です。
-しかし、メル社内でMTC2018@<fn>{mtc2018}を作る際、@<code>{"CircleExhibitInfo:33000001"}的な形式でよくね？humanreadableで何か問題ある？という議論も行われ、現時点で最適解は定まっていません。
+そのため、Global IDの書式をどのようにするか、というのはなかなか意思決定が必要でしょう。
+今の所、技術書典では@<code>{CircleExhibitInfo:33000001}を@<code>{base64.RawURLEncoding.EncodeToString}で処理する方式を採用する予定です。
+
+しかし、メ社内でMTC2018@<fn>{mtc2018}を作る際、@<code>{CircleExhibitInfo:33000001}のままでよくね？
+humanreadableで何か問題ある？という議論も行われ、現時点で最適解は定まっていません。
 筆者的にも別にbase64にする必要はないのでは…？みたいな顔をし始めたところです。
 
 #@# prh:disable
@@ -143,9 +152,7 @@ gqlgen以外だとなんか楽な仕掛けがあったりするんだろうか�
 
 ここまでの項目でもさんざん参考にしているので、みなさんもやっていきましょう。
 GitHubのAPIはv3までは普通にREST APIで、サーバ側もRailsですので実装に苦闘の痕を伺うことができて面白いです。
-逆に、あまり見習うべきではないパーツもありますので注意しましょう。
-
-TODO
+歴史的経緯を想像し、あまり見習うべきではないパーツはしっかり避け、よい工夫を汲み取って学習していきましょう。
 
 == GraphQLのセキュリティ
 
@@ -155,6 +162,7 @@ GraphQLでも通常のREST API的な開発と同様の内容は踏襲してい�
 
 GraphQL固有の問題はというと、"柔軟なクエリを書けてしまう"問題があります。
 たとえば、過去のイベントを5件取得し、それにぶら下がるサークルを100件取得し、そのサークルが属するイベントを取得し、それにぶらさがる（略）、のような乱暴なクエリを書いたりしていくとあっという間にコストが爆発します。
+
 GraphQLの場合、ツリーの節が増えるごとに掛け算式に取得するデータが増えていきます。
 このようなDDoSを意図していなくてもDDoSになりがちなクエリに対して、どのように実行する前に防御するか、というところが肝心です。
 
@@ -164,14 +172,14 @@ GitHubが採用している方式として、Node limitとRate limitがありま
 //footnote[github-limits][@<href>{https://developer.github.com/v4/guides/resource-limitations/}]
 
 これを踏まえて見ると、GitHubのクエリ系は必ず件数のlimitを指定させる設計になっていて、クエリ実行前に最大のNode数が計算できるよう工夫されています。
-これは我々も見習うべき知見で、データが何個あるか知らんけど無限に返したろｗｗｗ みたいなことをするとコスト計算ができずにめちゃめちゃ負荷のかかるクエリを実行してしまう可能性があります。
+これは我々も見習うべき知見で、データが何個あるか知らんけど無限に返したろｗｗｗみたいな雑な死に方を回避できます。
 
 gqlgenにも同様のコスト計算のための仕組みがあります。
 それがcomplexityです@<fn>{gqlgen-complexity}。
-complexity自体はgraphql-rubyにもある@<fn>{graphql-ruby-complexity}考え方です。
+complexity自体はgraphql-rubyにある@<fn>{graphql-ruby-complexity}考え方です。
 
 //footnote[gqlgen-complexity][@<href>{https://gqlgen.com/reference/complexity/}]
-//footnote[graphql-ruby-complexity][@<href>{http://graphql-ruby.org/queries/complexity_and_depth} gqlgenよりこっちのほうが先]
+//footnote[graphql-ruby-complexity][@<href>{http://graphql-ruby.org/queries/complexity_and_depth}]
 
 それでは、試しにコスト計算をしてみます。
 @<list>{complexity-query}のクエリについて考えます。
@@ -180,13 +188,13 @@ gqlgenのデフォルトの計算だとどれが件数なのかなどは判別�
 
 #@# prh:disable
 //list[complexity-query][試しにコスト計算してみる]{
+# このクエリのコストは200
 query {
-  # このクエリのコストは200
-  # 子（20）×10 で 200
+  # 10×子（20）で200
   eventList(first: 10) {
-    # 子（2）×10 で 20
+    # 10×子（2）で20
     circleList(first: 10) {
-      # ↓ field1個で1 2個なので2
+      # ↓ field1個で1、2個なので2
       id
       name
     }
@@ -202,25 +210,19 @@ package complexity_sample
 const ComplexityLimit = 200
 
 func NewComplexity() ComplexityRoot {
+
+  f := func(childComplexity int, first *int) int {
+    if first == nil {
+      // 指定無しはエラーにしたいけどそれはResolver側に任せる
+      return 1 + childComplexity
+    }
+
+    return *first * childComplexity
+  }
+
   complexityRoot := ComplexityRoot{}
-
-  complexityRoot.Query.EventList = func(childComplexity int, first *int) int {
-    if first == nil {
-      // 指定無しはエラーにしたいけどそれはResolver側に任せる
-      return 1 + childComplexity
-    }
-
-    return *first * childComplexity
-  }
-
-  complexityRoot.Event.CircleList = func(childComplexity int, first *int) int {
-    if first == nil {
-      // 指定無しはエラーにしたいけどそれはResolver側に任せる
-      return 1 + childComplexity
-    }
-
-    return *first * childComplexity
-  }
+  complexityRoot.Query.EventList = f
+  complexityRoot.Event.CircleList = f
 
   return complexityRoot
 }
@@ -229,12 +231,12 @@ func NewComplexity() ComplexityRoot {
 
 めんどくさいですがこの定義を与えてやるとクエリ実行前にいい感じにコスト計算を行ってくれるようになります。
 
-流石になんぼなんでもめんどくさいのでもうちょっと楽な仕組みを考えたいところではあります。
-struct tagからコスト設定を読むとか特定のネーミングルールのときにコスト計算を自動化するとかしたいですね。
+なんぼなんでも手実装はめんどくさいのでもうちょっと楽な仕組みを考えたいところではあります。
+struct tagからコスト設定を読むとか、特定のネーミングルールのときにコスト計算を自動化するとかしたいですね。
 また、深い箇所のフィールド数を増やすとコストにモロに響くので、DBから一括で取り出せるフィールドについてはコスト計算を甘くしたいなどの欲求があります。
 これらは今のgqlgenではサポートされておらず、将来的には僕が頑張るかもしれないけど今のところやる余力がないので先延ばしです！
 
-さらにいろいろ知りたい場合、How to GraphQLの解説@<fn>{hot-to-graphql-security}にはセキュリティに限らず秀逸な解説が多いので目を通してみるとよいでしょう。
+さらにいろいろ知りたい場合、How to GraphQLの解説@<fn>{hot-to-graphql-security}にはこの話題に限らず秀逸な解説が多いので目を通してみるとよいでしょう。
 
 //footnote[hot-to-graphql-security][@<href>{https://www.howtographql.com/advanced/4-security/}]
 
@@ -278,13 +280,13 @@ REST APIで色々と"頑張った"型定義をしていた場合、GraphQL上で
 これは、サークル主とスタッフ権限持ちの人間のみが見ることができます。
 
 さて、GraphQLにこれを落とす時、どうモデリングするのがよいでしょうか？
-結論からいうと、Directiveを使って制御しつつ、Kindの素直に従った構成にするのが正解のようです。
+結論からいうと、Directiveを使って制御しつつ、Kindの構成を素直に反映した構造にするのが正解のようです。
 
 筆者がgqlgenに取り組み始めた時はDirectiveサポートがまだなかったので、色々と試行錯誤しました。
 CircleExhibitInfoを可視性毎にCircle、CircleForOwner、CircleForStaffに分割し提供するようにしてみました。
 この構成の問題点は前述のRelay Global Object Identificationと組み合わせた時が辛いです。
-DB上は同じモノを可視性に応じて別々のID振るとかわりと狂気を感じます。
-単純にハンドリングするコードを書く手間はすごいのでまぁ普通に心が折れます。
+DB上は同じモノを可視性に応じて別々のIDを振るというトリッキーな設計にする必要があり、狂気を感じます。
+単純にハンドリングするコードを書く手間がすごいので普通に心が折れます。
 
 で、心が折れたのでgqlgenがDirectiveをサポートするための手伝いをして、Directiveを使うことにしました。
 Directiveであれば、統一的な仕組みでフィールド単位で見せたり見せなかったりを制御しやすいです。
@@ -292,14 +294,11 @@ Directiveであれば、統一的な仕組みでフィールド単位で見せ�
 == Directiveを使い倒せ
 
 というわけでDirectiveを使いましょう。
-gqlgenではDirectiveは次のシグニチャの実装を与えます@<fn>{gqlgen-directive}。
-#@# prh:disable
-@<code>{func (ctx context.Context, obj interface{\}, next graphql.Resolver, requires *graph.Role) (interface{\}, error)}
-
-//footnote[gqlgen-directive][@<href>{https://gqlgen.com/reference/directives/} 詳細はここで]
-
+gqlgenでのDirectiveについては@<href>{https://gqlgen.com/reference/directives/}で確認してください。
 挙動は実際に自分で試して確かめてください。
-nextを呼ぶと次のResolverを呼びにいってしまいます。
+
+gqlgenのDirectiveを実装する関数に、next関数が渡されます。
+これを呼ぶと次のResolverを呼びにいってしまいます。
 つまり、アクセス制御を行うのであれば基本はnextを呼ぶ前に行うべきです。
 特に、Mutationのときにそれをやると副作用が発生した後に処理を行うことになり、意味がありません。
 しっかりテストしよう！
@@ -322,8 +321,10 @@ directive @hasRole(requires: Role) on OBJECT | FIELD_DEFINITION
 
 さて、Directiveを使うことでSchema上のどのフィールドがどういう制御を利用しているかが自動的にドキュメント化されることになります。
 これはクエリを書く人にとっても、そのフィールドにアクセスするにはどういう権限が必要かが一目瞭然です。
-まさにGraphQLらしい、GraphiQL上で完結する素晴らしい…すばらしい……すばらしい………？
-あれ…どのフィールドやオブジェクトにどういうDirectiveが指定されているかIntropectionで調べる仕組みがSpec上に存在していない…だと…？
+まさにGraphQLらしい、GraphiQL上で完結する素晴らしい方法…かと思いきや、どういうDirectiveがあるかはInstrospectionでわかりますが、どこでそのDirctiveが使われているかはまったくわかりません@<fn>{directive-instrospection}。
+と、いうことに原稿を書いていることに気が付きました。
+
+//footnote[directive-instrospection][@<href>{https://github.com/facebook/graphql/issues/300}]
 
 ふーざーけーるーなー！
 ああああああああああああああ！
@@ -332,22 +333,11 @@ well documentedな計画があああああああああ！
 折れちゃう！
 折れちゃううううううううううう！
 
-ぐっ… うぅ…今この原稿を書いている今の今まで気がついてなかった…。
-まさかDirectiveの情報がIntrospectionから取れない仕様だった@<fn>{directive-instrospection}なんて…。
-あんまりだぁぁあぁぁぁぁ…。
-
-//footnote[directive-instrospection][@<href>{https://github.com/facebook/graphql/issues/300}]
-
 対策として、ドキュメントをしっかり書く、権限チェックエラーが発生した時のエラーメッセージをわかりやすく、親切にする、などの対応をしていきましょう。
 
-== 生成されるコードと実装のコードはpackageを分けるべき？
+== カスタムスカラ型の扱い
 
-TODO
-gqlgenでの話
-
-== Int64とか
-
-int64は自前でマーシャラを用意します。
+int64などのカスタムのスカラ型を使う場合、自前でマーシャラを用意します。
 JavaScript（JSONではない）の仕様として、64bit幅の整数値を数値として扱うことができません。
 なので適当にStringにしてやる必要があります。
 それが辛い人は祈ってください@<fn>{js-bigint}。
@@ -386,7 +376,8 @@ import (
   "github.com/99designs/gqlgen/graphql"
 )
 
-// MarshalGraphQLInt64Scalar returns int64 to GraphQL Scalar value marshaller.
+// MarshalGraphQLInt64Scalar returns int64
+// to GraphQL Scalar value marshaller.
 func MarshalGraphQLInt64Scalar(v int64) graphql.Marshaler {
   return graphql.WriterFunc(func(w io.Writer) {
     s := fmt.Sprintf(`"%d"`, v)
@@ -394,7 +385,8 @@ func MarshalGraphQLInt64Scalar(v int64) graphql.Marshaler {
   })
 }
 
-// UnmarshalGraphQLInt64Scalar returns int64 value from GraphQL value.
+// UnmarshalGraphQLInt64Scalar returns int64 value
+// from GraphQL value.
 func UnmarshalGraphQLInt64Scalar(v interface{}) (int64, error) {
   switch v := v.(type) {
   case string:
@@ -409,12 +401,12 @@ func UnmarshalGraphQLInt64Scalar(v interface{}) (int64, error) {
 //}
 
 //list[custom-scalars/gqlgen.yml][設定でInt64に対して使うマーシャラの指定をする]{
-#@mapfile(../code/best-practice/custom-scalars/gqlgen.yml)
+#@# #@mapfile(../code/best-practice/custom-scalars/gqlgen.yml)
 schema: schema.graphql
 models:
   Int64:
-    model: github.com/vvakame/graphql-with-go-book/code/best-practice/custom-scalars.GraphQLInt64Scalar
-#@end
+    model: github.com/中略/custom-scalars.GraphQLInt64Scalar
+#@# #@end
 //}
 
 //footnote[gqlgen-custom-scalars][@<href>{https://gqlgen.com/reference/scalars/}]
@@ -439,10 +431,12 @@ GraphQLの場合、入力はクエリで、出力はJSONです。
 まぁこれは仕方がないですね。
 他に、テストの入力となるクエリについて、何を確かめる目的のクエリなのかを書いておかないと後で困る場合があります。
 
-ゴールデンテスティングを実施したときの実例は@<href>{https://github.com/mercari/mtc2018-web/blob/fa73af6c379acfe9be2e1b0e08d22c295cbab1f5/server/gqlapi/resolver_test.go#L19}にあります。
+ゴールデンテスティングを実施したときの実例は@<href>{http://bit.ly/2N8RQ4V}にあります。
+#@# http://bit.ly/2N8RQ4V → https://github.com/mercari/mtc2018-web/blob/fa73af6c379acfe9be2e1b0e08d22c295cbab1f5/server/gqlapi/resolver_test.go#L19
+
 技術書典の場合、未ログインユーザ、ログインユーザ、リソースオーナー、スタッフの4種類の権限持ちに対して同一のクエリを走らせ、権限制御が正しく行われているかのテストも行っています。
 
-ゴールデンテスティング以外の、普通のテストのやり方は今の所めんどくさくてあまり実施していません。
+ゴールデンテスティング以外の、いわゆる普通の手法のテストは今の所めんどくさくてあまり実施していません。
 Directiveのテストは個別にみっちりと書き、Resolverについての個別のテストはサボっています。
 
 == Code to Schema vs Schema to Code
@@ -451,18 +445,18 @@ gqlgenを礼賛する節です。
 なぜgqlgenを選ぶべきなのかというと、他によいものがないから、というのがもっとも大きな理由です。
 
 GraphQLを実装するアプローチとして、Schemaからコードを生成するか、コードでSchemaを表現するかの選択肢があります。
-どちらを選択するべきかは好みやチーム構造にフィットするかなどの指標がありますが、筆者は前者を選ぶことをお勧めします。
+どちらを選択するべきかは好みやチーム構造にフィットするかなどの観点がありますが、筆者は前者を選ぶことをお勧めします。
 理由はいくつかあります。
 
 1つ目はGraphQLのSchemaを変更するのが誰かわからないこと。
 Go言語でSchemaを表現した場合、Schemaを変更できるのはGo言語での開発を行える人のみです。
-これはSchemaの変更はResolverの実装を行うタイミングが不可分になることを意味します@<fn>{job-change}。
-GraphQLのSchemaであれば、修正した後にサーバ側コードに変更を入れるのは開発フローをしっかり工夫してあれば別々のPull Requestにすることもできるでしょう。
+これはSchemaの変更とResolverの実装タイミングが不可分になるからです@<fn>{job-change}。
+GraphQLのSchemaそのものの修正であれば、サーバ側やクライント側のコードの変更タイミングを別にし、独立して追いかけることが可能になるでしょう。
 
-//footnote[job-change][この辺りの考え方はチームメンバーがサーバもフロントもできたTOPGATE社から、分業しないと開発が成立しない規模になっているメル社に転職したことによる考え方の変化がありますね。自分のことながら興味深いことです。]
+//footnote[job-change][この辺りの考え方はチームメンバーがサーバもフロントもできたTG社から、分業しないと開発が成立しない規模になっているメル社に転職したことによる考え方の変化がありますね。自分のことながら興味深いことです。]
 
 2つ目は、Go言語がDSLとして使うのには十分に柔軟ではないことです。
-@<code>{graphql-go/graphql}@<fn>{graphql-go/graphql}などのコードでSchemaを表現する形式のサンプルコードを見ると、なかなか苦しそうに見えますし、type safeなようにも見えません。
+@<code>{graphql-go/graphql}@<fn>{graphql-go/graphql}などのコードにてSchemaを表現する形式のサンプルコードを見ると、なかなか苦しそうに見えますし、type safeなようにも見えません。
 さらに、Go言語は@<code>{go:generate}などのコード生成を便利に活用する文化があり、そのための標準ライブラリも他の多くの言語に比べると圧倒的に充実しています。
 よって、Schemaからコードを生成するアプローチを取るべき、となります。
 当然、他の言語ではまた別の選択肢があることでしょう。
@@ -485,7 +479,7 @@ BFFのレイヤでREST APIをラップする実装と、APIサーバで直接DB�
 REST APIの実装とDB周りのコードをシェアしてしまったほうが手間が少ないですし、キャッシュなどの構造も共有できたほうが都合がよいです。
 
 N+1問題に対処しない場合、REST APIコールがアホみたいに増えて1個のGraphQLクエリを処理するのに1000回以上のHTTP GETが発生したりしたことがありました。
-それでも性能的には2倍程度の酷さで済んだのでAppEngineの強さを実感しましたが不健全であることはかわりありませんね。
+それでも性能的には2倍程度の酷さで済んだのでAppEngineの強さを実感しましたが不健全であることは間違いありません。
 
 お仕事的にはMicroserviceバリバリなのである程度ナレッジがたまらないといけないところではあります。
 この場合、GraphQLサーバとして動作するBFFを組み、裏側のAPIサーバにはBatchGet用のAPIを生やし、通信はGraphQLかgRPCで行う、とするのが良さそうに思えます。
@@ -510,6 +504,7 @@ gqlgenは各Resolverをgoroutineを用いて並列化するため、この仕組
 さて問題が発生したのは、バッチ処理化した時の待ち合わせ処理です。
 複数のResolverから積まれたバッチ処理を実行します。
 このとき、ライブラリの内部的にはロックを取って積まれた処理を取り出し、ロックを解除し、その後に積まれた処理を実行し、それが終わったら処理を返します。
+
 問題は、積まれた処理を取り出せなかったgoroutineです。
 ロックを取って何も取り出さずにロックを解除し、積まれた処理はないので即座に処理を抜けます。
 このgoroutineが積んでいた処理は終わっていることを期待していますが、実際には別のgoroutineが処理を肩代わりして実行中です。

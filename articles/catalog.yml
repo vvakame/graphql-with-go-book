@@ -7,7 +7,7 @@ CHAPS:
   # - graphql-spec.re
   # - gqlgen.re
   - best-practice.re
-  - system-operation.re
+  # - system-operation.re
 
 POSTDEF:
   - afterword.re

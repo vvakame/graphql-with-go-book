@@ -1,15 +1,16 @@
 = GraphQLに触れる！GitHub v4 API
 
 さて、GraphQLでサーバを組む前に、GraphQLを使ってデータを取得してくることに慣れてみましょう。
-GraphQLではGraphiQL@<fn>{graphiql}という大変出来のよいエクスプローラというかプレイグラウンドというかがあります。
+GraphiQL@<fn>{graphiql}という大変出来のよいプレイグラウンド（エクスプローラ）があります。
 GraphiQLは一瞬typoかと思いがちなんですが、GraphQLとは別のものを指します。
 
 //footnote[graphiql][@<href>{https://github.com/graphql/graphiql}]
 
-GraphQLは仕様として、introspectionというエンドポイントがどういうクエリや型などを持つか、GraphQLを使って問い合わせることができます。
+GraphQLは仕様として、Introspectionでエンドポイントがどういうクエリや型などをもつか、GraphQL自体を使って問い合わせることができます。
 クエリ言語なのに、普通のプログラミング言語でいうリフレクションのような機能を持っているのです。
-この機能を使って、GraphiQL上でクエリを書くと入力補完が完備され、定義の参照も行うことができ、ドキュメントもすぐに参照できます。
+この機能を使って、GraphiQL上でクエリを書くと入力補完が完備され、定義の参照も行うことができ、ドキュメントもすぐに閲覧できます。
 実際、GraphQLを使ってクエリを試行錯誤する時にAPIの使い方や存在を調べて回ることはREST APIに比べて格段に少ないです。
+このおかげで、ドキュメントを自分のために積極的に書きたくなります。
 
 == GitHub v4 APIとはなんぞや
 
@@ -20,13 +21,13 @@ GraphQLは仕様として、introspectionというエンドポイントがどう
 
 //footnote[github-v4][@<href>{https://developer.github.com/v4/explorer/}]
 
-Sign in with GitHubから認証を済ませたら準備完了です。
+Webサイトを開き、Sign in with GitHubから認証を済ませたら準備完了です。
 
 == GraphiQL…最高や！
 
 やっていきましょう。
 まずは@<list>{query-viewer}のクエリを投げてみます。
-帰ってきたデータが、筆者の場合@<list>{query-viewer-result}です。
+すると、筆者の場合@<list>{query-viewer-result}のデータが得られます。
 
 //list[query-viewer][viewerを調べる]{
 #@mapfile(../code/github-v4/text/query-viewer.graphql)
@@ -55,15 +56,15 @@ Sign in with GitHubから認証を済ませたら準備完了です。
 
 さて、これだけでは特に面白くもありません。
 次にクエリの@<code>{viewer}部分をCommandキーやCtrlキーを押しながらクリックしてみます（@<img>{query-viewer}）。
-まるでIDEのように、定義が右側に開いたり、tooltipが表示されどういう型でどういうドキュメントが書かれているかを確認することができます。
+まるでIDEのように、定義が右側に開いたり、tooltipが表示されたりして、どういう型でどういうドキュメントが書かれているかを確認することができます。
 
 //image[query-viewer][ドキュメントが参照できる]{
 //}
 
 いい話だ…。
 viwerはUser型であることがわかります。
-User型にはどういうフィールドがあるのか、クエリには他にどんな要素があるのか、ドンドン進めていけます。
-知りたいことがある時に、試行錯誤しながらドキュメントのページと行ったり来たりしなくて済むのはストレスフリーで最高ですね。
+User型にはどういうフィールドがあるのか、クエリには他にどんな要素があるのか、ドンドン連鎖的に調べていけます。
+知りたいことがある時に、1つのページ内で試行錯誤できるのはストレスフリーで最高ですね。
 
 == Schemaを眺める
 
@@ -73,14 +74,14 @@ User型にはどういうフィールドがあるのか、クエリには他に�
 GitHubではOperationとして、QueryとMutationを持っているようです（@<img>{document-explorer}）。
 Queryはデータの取得、Mutationはデータの変更、ここにはありませんがSubscribeはデータの監視を行うことができます。
 
-//image[document-explorer][Query, Mutationが見える]{
+//image[document-explorer][Query, Mutationが見える][scale=0.7]{
 //}
 
 Queryの内容を見てみて、興味のありそうなものを適当に見て回ってみましょう。
 筆者は@<code>{repositoryOwner(login: String!): RepositoryOwner}という引数付きフィールド（@<img>{document-query-repositoryOwner}）に興味を惹かれました。
 さきほど、viewerを見た時にUserという型がありました、ここでの返り値がUser型ではないのはなぜでしょうか。
 
-//image[document-query-repositoryOwner][RepositoryOwnerとは…？]{
+//image[document-query-repositoryOwner][RepositoryOwnerとは…？][scale=0.7]{
 //}
 
 中身を見てみると、色々とフィールドがあり、最後にimplementations Organization, Userとなっています。
@@ -102,7 +103,7 @@ GitHubも長い歴史があり、途中からGraphQLを導入するためにさ�
 == Goでクライアントを書く
 
 はい。
-APIの要点を理解するには3rd partyパッケージを使わずに試すのが一番！ということで、Goで適当にリクエストを投げてみます（@<list>{go-client/main.go}）。
+APIの要点を理解するには3rd partyパッケージを使わずにAPIを叩いてみるのが一番！ということで、Goで適当にリクエストを投げてみます（@<list>{go-client/main.go}）。
 クエリと変数をPOSTで投げるだけです。
 実行には環境変数に@<code>{GITHUB_TOKEN}という名前でPersonal Access Token@<fn>{pat}をセットしておく必要があります。
 クエリの部分毎に必要なパーミッションは異なるので、自分で必要だと思う権限を付与しておきましょう。
