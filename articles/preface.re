@@ -4,8 +4,10 @@
 と思いきやベストプラクティスを書ききったところで割と力尽きたのでツール自体の使い方の話は少ないです。
 後日、@<href>{https://github.com/vvakame/graphql-with-go-book}にて本書の全文を無料公開します。
 
-主に話題にするツールは筆者もコミッタになっている@<href>{https://github.com/99designs/gqlgen,github.com/99designs/gqlgen}です。
+主に話題にするツールは筆者もコミッタになっているgqlgen@<fn>{gqlgen}です。
 本書執筆時点でのgqlgenのバージョンは次のとおりです。
+
+//footnote[gqlgen][@<href>{https://github.com/99designs/gqlgen}]
 
 //cmd{
 #@# docker に go 入れるのだるいので #@mapoutput(cd ../code && go list -m -u github.com/99designs/gqlgen)

@@ -14,5 +14,6 @@ Gemfile.lock
 .DS_Store
 Thumbs.db
 
+articles/images/cover/
 articles/*.html
 scripts/*.js

@@ -5,7 +5,10 @@ GraphQLは銀の弾丸ではないですが、フロント側の開発体験を�
 
 GraphQLはGraph Query Languageの名のとおり、グラフ構造に対するクエリ言語です。
 大本をFacebookが考案しただけあって、友人関係などのグラフ状のデータを（画面に描画のために）取得する言語といえます。
-クエリの対象としてはグラフ構造（的な何か）ですが、レスポンスはツリー構造になります。
+クエリの対象としてはグラフ構造（的な何か）ですが、レスポンスはツリー構造になります（@<img>{query-and-data}）。
+
+//image[query-and-data][クエリとレスポンスの構造を見比べる]{
+//}
 
 == GraphQLを用いる目的
 
@@ -52,11 +55,12 @@ Fragmentを使わずに効率的にやろうとした場合、結局クエリに
 一方、GraphQLはその名の示すとおりQuery Languageです。
 この差はかなり大きく、RESTful APIを実装するサーバ側コードを流用しようとするとクライアント側から見て理解に苦しむ挙動になりがちです。
 
-また、アクセス権限を絞ったりするのにはDirectiveという仕様の存在が大きいです。
+また、アクセス権限を絞ったりするのにはDirectiveという仕様@<fn>{directive-spec}の存在が大きいです。
 実際に自分でGraphQLサーバを構成してみると、GET系の処理についてはDB+Directiveで設計したルールベースの制御だけで賄える気すらしています。
 もしかしたら、prisma@<fn>{prisma}のようなGraphQL特化の@<kw>{ORM,Object Relation Mapping}というのは筋のよい考え方なのかもしれません。
 自分は使わないと思いますが…。
 
+//footnote[directive-spec][@<href>{https://facebook.github.io/graphql/draft/#sec-Language.Directives}]
 //footnote[prisma][@<href>{https://www.prisma.io/}]
 
 == Introspectionがつよい
@@ -79,11 +83,14 @@ GraphQLはきっちりと型付けされていて、しかもその情報をサ�
 それは、GraphQLサーバの実装はResolverの集合体であるということです。
 
 技術書典のデータ構造を例に考えてみます。
-まず最初にEvent（イベント）があり、その下にCircleExhibitInfo（サークル参加情報）があり、さらにその下にProductInfo（頒布物情報）があります。
+まず最初にEvent（イベント）があり、その下にCircleExhibitInfo（サークル参加情報）があり、さらにその下にProductInfo（頒布物情報）があります（@<img>{tbf-chain}）。
 クエリにあわせ、まず最初にイベントをresolve（解決）し、それにぶら下がる数百のサークルをresolveし、各サークル毎に1〜n個の頒布物情報をresolveします。
 ここでそれぞれにResolverを定義します。
 1. クエリ→イベントのResolver、2. イベント→サークルリストのResolver、3. サークル→頒布物リストのResolver という感じです。
 そして、これらすべてのResolverを統合したものがGraphQLサーバなのです。
+
+//image[tbf-chain][データ構造の実例]{
+//}
 
 ResolverがNodeを生成し、Nodeがツリー構造を成し、これがレスポンスとなるのです。
 よって、GraphQLサーバとはどうやってResolverを定義するか、そしてそれを統合するか、という問題に還元されていきます。

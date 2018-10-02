@@ -132,7 +132,7 @@ GitHubのGraphQLエンドポイントはすでにこの仕様をサポートし�
 このURLからIDを切り出し、@<code>{GET /api/circle/33000001}を叩いたりするわけです。
 同じことをこの仕様のもとにやろうとした場合、@<code>{/event/tbf05/circle/Q2lyY2xlRXhoaWJpdEluZm86MzMwMDAwMDEK}のようなURL設計にするか、Global IDをアプリ側で合成できる必要があります。
 そのため、Global IDの書式をどのようにするか、というのはなかなか意思決定が必要でしょう。
-今の所、技術書典では@<code>{CircleExhibitInfo:33000001}を@<code>{base64.RawURLEncoding.EncodeToString}で処理する方式を採用する予定です。
+今の所、技術書典では@<code>{CircleExhibitInfo:33000001}を@<code>{base64.RawURLEncoding}で処理する方式を採用する予定です。
 
 しかし、メ社内でMTC2018@<fn>{mtc2018}を作る際、@<code>{CircleExhibitInfo:33000001}のままでよくね？
 humanreadableで何か問題ある？という議論も行われ、現時点で最適解は定まっていません。
