@@ -17,3 +17,4 @@ Thumbs.db
 articles/images/cover/
 articles/*.html
 scripts/*.js
+distribute/
