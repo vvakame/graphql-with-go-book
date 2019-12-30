@@ -270,7 +270,7 @@ REST APIで色々と"頑張った"型定義をしていた場合、GraphQL上で
 具体的に、技術書典では@<code>{CircleExhibitInfo}と@<code>{CircleExhibitInfoSecret}という2つのKind@<fn>{whats-kind}があります。
 1つは公開情報やら何やらをもつKind、もう片方がサークル主の個人情報などをもつKindです。
 プログラミングミスで見えてはいけないものが見えてしまう危険性を減らすために分割しています。
-さて、REST APIではこの2つをembeddedしたsturctをJSONにして返しています。
+さて、REST APIではこの2つをembeddedしたstructをJSONにして返しています。
 つまり、この2つを合体させたJSONが返るわけです。
 
 //footnote[whats-kind][KindはDatastore用語で、ざっくりテーブルと同じ意味だと思ってください]
